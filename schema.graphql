@@ -1,0 +1,2096 @@
+"""
+Indicates exactly one field must be supplied and this field must not be `null`.
+"""
+directive @oneOf on INPUT_OBJECT
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+"""
+A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
+"""
+scalar DateTime
+
+"""
+A date string, such as 2007-12-03, compliant with the `full-date` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
+"""
+scalar Date
+
+"""
+The `BigInt` scalar type represents non-fractional signed whole numeric values.
+"""
+scalar Long
+
+type Pagination {
+  total: Int!
+  page: Int!
+  pageSize: Int!
+  pageCount: Int!
+}
+
+type DeleteMutationResponse {
+  documentId: ID!
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+}
+
+input IDFilterInput {
+  and: [ID]
+  or: [ID]
+  not: IDFilterInput
+  eq: ID
+  eqi: ID
+  ne: ID
+  nei: ID
+  startsWith: ID
+  endsWith: ID
+  contains: ID
+  notContains: ID
+  containsi: ID
+  notContainsi: ID
+  gt: ID
+  gte: ID
+  lt: ID
+  lte: ID
+  null: Boolean
+  notNull: Boolean
+  in: [ID]
+  notIn: [ID]
+  between: [ID]
+}
+
+input BooleanFilterInput {
+  and: [Boolean]
+  or: [Boolean]
+  not: BooleanFilterInput
+  eq: Boolean
+  eqi: Boolean
+  ne: Boolean
+  nei: Boolean
+  startsWith: Boolean
+  endsWith: Boolean
+  contains: Boolean
+  notContains: Boolean
+  containsi: Boolean
+  notContainsi: Boolean
+  gt: Boolean
+  gte: Boolean
+  lt: Boolean
+  lte: Boolean
+  null: Boolean
+  notNull: Boolean
+  in: [Boolean]
+  notIn: [Boolean]
+  between: [Boolean]
+}
+
+input StringFilterInput {
+  and: [String]
+  or: [String]
+  not: StringFilterInput
+  eq: String
+  eqi: String
+  ne: String
+  nei: String
+  startsWith: String
+  endsWith: String
+  contains: String
+  notContains: String
+  containsi: String
+  notContainsi: String
+  gt: String
+  gte: String
+  lt: String
+  lte: String
+  null: Boolean
+  notNull: Boolean
+  in: [String]
+  notIn: [String]
+  between: [String]
+}
+
+input IntFilterInput {
+  and: [Int]
+  or: [Int]
+  not: IntFilterInput
+  eq: Int
+  eqi: Int
+  ne: Int
+  nei: Int
+  startsWith: Int
+  endsWith: Int
+  contains: Int
+  notContains: Int
+  containsi: Int
+  notContainsi: Int
+  gt: Int
+  gte: Int
+  lt: Int
+  lte: Int
+  null: Boolean
+  notNull: Boolean
+  in: [Int]
+  notIn: [Int]
+  between: [Int]
+}
+
+input LongFilterInput {
+  and: [Long]
+  or: [Long]
+  not: LongFilterInput
+  eq: Long
+  eqi: Long
+  ne: Long
+  nei: Long
+  startsWith: Long
+  endsWith: Long
+  contains: Long
+  notContains: Long
+  containsi: Long
+  notContainsi: Long
+  gt: Long
+  gte: Long
+  lt: Long
+  lte: Long
+  null: Boolean
+  notNull: Boolean
+  in: [Long]
+  notIn: [Long]
+  between: [Long]
+}
+
+input FloatFilterInput {
+  and: [Float]
+  or: [Float]
+  not: FloatFilterInput
+  eq: Float
+  eqi: Float
+  ne: Float
+  nei: Float
+  startsWith: Float
+  endsWith: Float
+  contains: Float
+  notContains: Float
+  containsi: Float
+  notContainsi: Float
+  gt: Float
+  gte: Float
+  lt: Float
+  lte: Float
+  null: Boolean
+  notNull: Boolean
+  in: [Float]
+  notIn: [Float]
+  between: [Float]
+}
+
+input DateFilterInput {
+  and: [Date]
+  or: [Date]
+  not: DateFilterInput
+  eq: Date
+  eqi: Date
+  ne: Date
+  nei: Date
+  startsWith: Date
+  endsWith: Date
+  contains: Date
+  notContains: Date
+  containsi: Date
+  notContainsi: Date
+  gt: Date
+  gte: Date
+  lt: Date
+  lte: Date
+  null: Boolean
+  notNull: Boolean
+  in: [Date]
+  notIn: [Date]
+  between: [Date]
+}
+
+input DateTimeFilterInput {
+  and: [DateTime]
+  or: [DateTime]
+  not: DateTimeFilterInput
+  eq: DateTime
+  eqi: DateTime
+  ne: DateTime
+  nei: DateTime
+  startsWith: DateTime
+  endsWith: DateTime
+  contains: DateTime
+  notContains: DateTime
+  containsi: DateTime
+  notContainsi: DateTime
+  gt: DateTime
+  gte: DateTime
+  lt: DateTime
+  lte: DateTime
+  null: Boolean
+  notNull: Boolean
+  in: [DateTime]
+  notIn: [DateTime]
+  between: [DateTime]
+}
+
+input JSONFilterInput {
+  and: [JSON]
+  or: [JSON]
+  not: JSONFilterInput
+  eq: JSON
+  eqi: JSON
+  ne: JSON
+  nei: JSON
+  startsWith: JSON
+  endsWith: JSON
+  contains: JSON
+  notContains: JSON
+  containsi: JSON
+  notContainsi: JSON
+  gt: JSON
+  gte: JSON
+  lt: JSON
+  lte: JSON
+  null: Boolean
+  notNull: Boolean
+  in: [JSON]
+  notIn: [JSON]
+  between: [JSON]
+}
+
+input UploadFileFiltersInput {
+  documentId: IDFilterInput
+  name: StringFilterInput
+  alternativeText: StringFilterInput
+  caption: StringFilterInput
+  width: IntFilterInput
+  height: IntFilterInput
+  formats: JSONFilterInput
+  hash: StringFilterInput
+  ext: StringFilterInput
+  mime: StringFilterInput
+  size: FloatFilterInput
+  url: StringFilterInput
+  previewUrl: StringFilterInput
+  provider: StringFilterInput
+  provider_metadata: JSONFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [UploadFileFiltersInput]
+  or: [UploadFileFiltersInput]
+  not: UploadFileFiltersInput
+}
+
+type UploadFile {
+  documentId: ID!
+  name: String!
+  alternativeText: String
+  caption: String
+  width: Int
+  height: Int
+  formats: JSON
+  hash: String!
+  ext: String
+  mime: String!
+  size: Float!
+  url: String!
+  previewUrl: String
+  provider: String!
+  provider_metadata: JSON
+  related: [GenericMorph]
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type UploadFileEntityResponseCollection {
+  nodes: [UploadFile!]!
+  pageInfo: Pagination!
+}
+
+input I18NLocaleFiltersInput {
+  documentId: IDFilterInput
+  name: StringFilterInput
+  code: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [I18NLocaleFiltersInput]
+  or: [I18NLocaleFiltersInput]
+  not: I18NLocaleFiltersInput
+}
+
+type I18NLocale {
+  documentId: ID!
+  name: String
+  code: String
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type I18NLocaleEntityResponseCollection {
+  nodes: [I18NLocale!]!
+  pageInfo: Pagination!
+}
+
+input ReviewWorkflowsWorkflowFiltersInput {
+  documentId: IDFilterInput
+  name: StringFilterInput
+  stages: ReviewWorkflowsWorkflowStageFiltersInput
+  stageRequiredToPublish: ReviewWorkflowsWorkflowStageFiltersInput
+  contentTypes: JSONFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [ReviewWorkflowsWorkflowFiltersInput]
+  or: [ReviewWorkflowsWorkflowFiltersInput]
+  not: ReviewWorkflowsWorkflowFiltersInput
+}
+
+input ReviewWorkflowsWorkflowInput {
+  name: String
+  stages: [ID]
+  stageRequiredToPublish: ID
+  contentTypes: JSON
+  publishedAt: DateTime
+}
+
+type ReviewWorkflowsWorkflow {
+  documentId: ID!
+  name: String!
+  stages_connection(filters: ReviewWorkflowsWorkflowStageFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): ReviewWorkflowsWorkflowStageRelationResponseCollection
+  stages(filters: ReviewWorkflowsWorkflowStageFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [ReviewWorkflowsWorkflowStage]!
+  stageRequiredToPublish: ReviewWorkflowsWorkflowStage
+  contentTypes: JSON!
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type ReviewWorkflowsWorkflowEntityResponseCollection {
+  nodes: [ReviewWorkflowsWorkflow!]!
+  pageInfo: Pagination!
+}
+
+input ReviewWorkflowsWorkflowStageFiltersInput {
+  documentId: IDFilterInput
+  name: StringFilterInput
+  color: StringFilterInput
+  workflow: ReviewWorkflowsWorkflowFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [ReviewWorkflowsWorkflowStageFiltersInput]
+  or: [ReviewWorkflowsWorkflowStageFiltersInput]
+  not: ReviewWorkflowsWorkflowStageFiltersInput
+}
+
+input ReviewWorkflowsWorkflowStageInput {
+  name: String
+  color: String
+  workflow: ID
+  publishedAt: DateTime
+}
+
+type ReviewWorkflowsWorkflowStage {
+  documentId: ID!
+  name: String
+  color: String
+  workflow: ReviewWorkflowsWorkflow
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type ReviewWorkflowsWorkflowStageEntityResponseCollection {
+  nodes: [ReviewWorkflowsWorkflowStage!]!
+  pageInfo: Pagination!
+}
+
+type ReviewWorkflowsWorkflowStageRelationResponseCollection {
+  nodes: [ReviewWorkflowsWorkflowStage!]!
+}
+
+input UsersPermissionsPermissionFiltersInput {
+  documentId: IDFilterInput
+  action: StringFilterInput
+  role: UsersPermissionsRoleFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [UsersPermissionsPermissionFiltersInput]
+  or: [UsersPermissionsPermissionFiltersInput]
+  not: UsersPermissionsPermissionFiltersInput
+}
+
+type UsersPermissionsPermission {
+  documentId: ID!
+  action: String!
+  role: UsersPermissionsRole
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type UsersPermissionsPermissionRelationResponseCollection {
+  nodes: [UsersPermissionsPermission!]!
+}
+
+input UsersPermissionsRoleFiltersInput {
+  documentId: IDFilterInput
+  name: StringFilterInput
+  description: StringFilterInput
+  type: StringFilterInput
+  permissions: UsersPermissionsPermissionFiltersInput
+  users: UsersPermissionsUserFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [UsersPermissionsRoleFiltersInput]
+  or: [UsersPermissionsRoleFiltersInput]
+  not: UsersPermissionsRoleFiltersInput
+}
+
+input UsersPermissionsRoleInput {
+  name: String
+  description: String
+  type: String
+  permissions: [ID]
+  users: [ID]
+  publishedAt: DateTime
+}
+
+type UsersPermissionsRole {
+  documentId: ID!
+  name: String!
+  description: String
+  type: String
+  permissions_connection(filters: UsersPermissionsPermissionFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): UsersPermissionsPermissionRelationResponseCollection
+  permissions(filters: UsersPermissionsPermissionFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [UsersPermissionsPermission]!
+  users_connection(filters: UsersPermissionsUserFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): UsersPermissionsUserRelationResponseCollection
+  users(filters: UsersPermissionsUserFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [UsersPermissionsUser]!
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type UsersPermissionsRoleEntityResponseCollection {
+  nodes: [UsersPermissionsRole!]!
+  pageInfo: Pagination!
+}
+
+input UsersPermissionsUserFiltersInput {
+  documentId: IDFilterInput
+  username: StringFilterInput
+  email: StringFilterInput
+  provider: StringFilterInput
+  confirmed: BooleanFilterInput
+  blocked: BooleanFilterInput
+  role: UsersPermissionsRoleFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [UsersPermissionsUserFiltersInput]
+  or: [UsersPermissionsUserFiltersInput]
+  not: UsersPermissionsUserFiltersInput
+}
+
+input UsersPermissionsUserInput {
+  username: String
+  email: String
+  provider: String
+  confirmed: Boolean
+  blocked: Boolean
+  role: ID
+  publishedAt: DateTime
+  password: String
+}
+
+type UsersPermissionsUser {
+  documentId: ID!
+  username: String!
+  email: String!
+  provider: String
+  confirmed: Boolean
+  blocked: Boolean
+  role: UsersPermissionsRole
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type UsersPermissionsUserEntityResponse {
+  data: UsersPermissionsUser
+}
+
+type UsersPermissionsUserEntityResponseCollection {
+  nodes: [UsersPermissionsUser!]!
+  pageInfo: Pagination!
+}
+
+type UsersPermissionsUserRelationResponseCollection {
+  nodes: [UsersPermissionsUser!]!
+}
+
+enum ENUM_ACCOUNT_LOAI_TAI_KHOAN {
+  Quan_tri_vien
+  Hoi_vien
+  Khach
+}
+
+enum ENUM_ACCOUNT_TRANG_THAI {
+  Kich_hoat
+  Khoa_tai_khoan
+}
+
+input AccountFiltersInput {
+  documentId: IDFilterInput
+  ma_zalo: StringFilterInput
+  ten_dang_nhap: StringFilterInput
+  loai_tai_khoan: StringFilterInput
+  ma_zalo_oa: StringFilterInput
+  trang_thai: StringFilterInput
+  hoi_vien: MemberInformationFiltersInput
+  so_dien_thoai_zalo: StringFilterInput
+  chi_hoi: StringFilterInput
+  ngay_tao: DateTimeFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [AccountFiltersInput]
+  or: [AccountFiltersInput]
+  not: AccountFiltersInput
+}
+
+input AccountInput {
+  ma_zalo: String
+  ten_dang_nhap: String
+  loai_tai_khoan: ENUM_ACCOUNT_LOAI_TAI_KHOAN
+  ma_zalo_oa: String
+  trang_thai: ENUM_ACCOUNT_TRANG_THAI
+  hoi_vien: ID
+  so_dien_thoai_zalo: String
+  chi_hoi: String
+  ngay_tao: DateTime
+  publishedAt: DateTime
+}
+
+type Account {
+  documentId: ID!
+  ma_zalo: String!
+  ten_dang_nhap: String
+  loai_tai_khoan: ENUM_ACCOUNT_LOAI_TAI_KHOAN
+  ma_zalo_oa: String
+  trang_thai: ENUM_ACCOUNT_TRANG_THAI
+  hoi_vien: MemberInformation
+  so_dien_thoai_zalo: String
+  chi_hoi: String
+  ngay_tao: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type AccountEntityResponseCollection {
+  nodes: [Account!]!
+  pageInfo: Pagination!
+}
+
+type AccountRelationResponseCollection {
+  nodes: [Account!]!
+}
+
+input BankFiltersInput {
+  documentId: IDFilterInput
+  ten_chu_tai_khoan: StringFilterInput
+  ten_ngan_hang: StringFilterInput
+  so_tai_khoan: LongFilterInput
+  nguoi_phu_trach: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [BankFiltersInput]
+  or: [BankFiltersInput]
+  not: BankFiltersInput
+}
+
+input BankInput {
+  ten_chu_tai_khoan: String
+  ten_ngan_hang: String
+  so_tai_khoan: Long
+  nguoi_phu_trach: String
+  publishedAt: DateTime
+}
+
+type Bank {
+  documentId: ID!
+  ten_chu_tai_khoan: String!
+  ten_ngan_hang: String!
+  so_tai_khoan: Long!
+  nguoi_phu_trach: String
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type BankEntityResponseCollection {
+  nodes: [Bank!]!
+  pageInfo: Pagination!
+}
+
+input BdsdFiltersInput {
+  documentId: IDFilterInput
+  ma_giao_dich: StringFilterInput
+  noi_dung_giao_dich: StringFilterInput
+  so_tien: FloatFilterInput
+  tai_khoan_nhan: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [BdsdFiltersInput]
+  or: [BdsdFiltersInput]
+  not: BdsdFiltersInput
+}
+
+input BdsdInput {
+  ma_giao_dich: String
+  noi_dung_giao_dich: String
+  so_tien: Float
+  tai_khoan_nhan: String
+  publishedAt: DateTime
+}
+
+type Bdsd {
+  documentId: ID!
+  ma_giao_dich: String!
+  noi_dung_giao_dich: String
+  so_tien: Float!
+  tai_khoan_nhan: String
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type BdsdEntityResponseCollection {
+  nodes: [Bdsd!]!
+  pageInfo: Pagination!
+}
+
+input ChapterFiltersInput {
+  documentId: IDFilterInput
+  ten_chi_hoi: StringFilterInput
+  thu_ky_phu_trach: StringFilterInput
+  so_luong_hoi_vien: IntFilterInput
+  hoi_vien_moi_trong_nam: IntFilterInput
+  hoi_vien_ngung_hoat_dong: IntFilterInput
+  danh_sach_su_kien: StringFilterInput
+  danh_sach_hoi_vien: StringFilterInput
+  hoi_phi_da_thu: FloatFilterInput
+  ban_chap_hanh: ExecutiveCommitteeFiltersInput
+  thu_ky_phu: StringFilterInput
+  hoi_vien: MemberInformationFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [ChapterFiltersInput]
+  or: [ChapterFiltersInput]
+  not: ChapterFiltersInput
+}
+
+input ChapterInput {
+  ten_chi_hoi: String
+  thu_ky_phu_trach: String
+  so_luong_hoi_vien: Int
+  hoi_vien_moi_trong_nam: Int
+  hoi_vien_ngung_hoat_dong: Int
+  danh_sach_su_kien: String
+  danh_sach_hoi_vien: String
+  hoi_phi_da_thu: Float
+  ban_chap_hanh: [ID]
+  thu_ky_phu: String
+  hoi_vien: [ID]
+  publishedAt: DateTime
+}
+
+type Chapter {
+  documentId: ID!
+  ten_chi_hoi: String!
+  thu_ky_phu_trach: String
+  so_luong_hoi_vien: Int
+  hoi_vien_moi_trong_nam: Int
+  hoi_vien_ngung_hoat_dong: Int
+  danh_sach_su_kien: String
+  danh_sach_hoi_vien: String
+  hoi_phi_da_thu: Float
+  ban_chap_hanh_connection(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): ExecutiveCommitteeRelationResponseCollection
+  ban_chap_hanh(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [ExecutiveCommittee]!
+  thu_ky_phu: String
+  hoi_vien_connection(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): MemberInformationRelationResponseCollection
+  hoi_vien(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [MemberInformation]!
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type ChapterEntityResponseCollection {
+  nodes: [Chapter!]!
+  pageInfo: Pagination!
+}
+
+input CompanyFiltersInput {
+  documentId: IDFilterInput
+  ten_cong_ty: StringFilterInput
+  su_kien: EventInformationFiltersInput
+  hoi_vien: MemberInformationFiltersInput
+  lien_ket_zalo_oa: StringFilterInput
+  tong_so_tien_tai_tro: FloatFilterInput
+  danh_sach_tai_tro: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [CompanyFiltersInput]
+  or: [CompanyFiltersInput]
+  not: CompanyFiltersInput
+}
+
+input CompanyInput {
+  ten_cong_ty: String
+  logo: ID
+  su_kien: ID
+  hoi_vien: ID
+  lien_ket_zalo_oa: String
+  tong_so_tien_tai_tro: Float
+  danh_sach_tai_tro: String
+  publishedAt: DateTime
+}
+
+type Company {
+  documentId: ID!
+  ten_cong_ty: String!
+  logo: UploadFile
+  su_kien: EventInformation
+  hoi_vien: MemberInformation
+  lien_ket_zalo_oa: String
+  tong_so_tien_tai_tro: Float
+  danh_sach_tai_tro: String
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type CompanyEntityResponseCollection {
+  nodes: [Company!]!
+  pageInfo: Pagination!
+}
+
+enum ENUM_EVENTAPPROVAL_LOAI_PHE_DUYET {
+  Phe_Duyet_lan_1
+  Phe_duyet_lan_2
+  Phe_duyet_tai_tro
+}
+
+enum ENUM_EVENTAPPROVAL_TRANG_THAI {
+  Can_Phe_duyet
+  Khong_duyet
+  Dong_y
+}
+
+input EventApprovalFiltersInput {
+  documentId: IDFilterInput
+  ma_code: StringFilterInput
+  su_kien_can_phe_duyet: EventInformationFiltersInput
+  ten_su_kien: StringFilterInput
+  noi_dung: StringFilterInput
+  loai_phe_duyet: StringFilterInput
+  trang_thai: StringFilterInput
+  nhan_vien_phu_trach: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [EventApprovalFiltersInput]
+  or: [EventApprovalFiltersInput]
+  not: EventApprovalFiltersInput
+}
+
+input EventApprovalInput {
+  ma_code: String
+  su_kien_can_phe_duyet: ID
+  ten_su_kien: String
+  noi_dung: String
+  loai_phe_duyet: ENUM_EVENTAPPROVAL_LOAI_PHE_DUYET
+  trang_thai: ENUM_EVENTAPPROVAL_TRANG_THAI
+  nhan_vien_phu_trach: String
+  publishedAt: DateTime
+}
+
+type EventApproval {
+  documentId: ID!
+  ma_code: String!
+  su_kien_can_phe_duyet: EventInformation
+  ten_su_kien: String
+  noi_dung: String
+  loai_phe_duyet: ENUM_EVENTAPPROVAL_LOAI_PHE_DUYET
+  trang_thai: ENUM_EVENTAPPROVAL_TRANG_THAI
+  nhan_vien_phu_trach: String
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type EventApprovalEntityResponseCollection {
+  nodes: [EventApproval!]!
+  pageInfo: Pagination!
+}
+
+type EventApprovalRelationResponseCollection {
+  nodes: [EventApproval!]!
+}
+
+enum ENUM_EVENTINFORMATION_TRANG_THAI {
+  Nhap
+  Sap_dien_ra
+  Dang_dien_ra
+  Huy
+}
+
+enum ENUM_EVENTINFORMATION_TRANG_THAI_PHE_DUYET_1 {
+  Can_phe_duyet
+  Khong_duyet
+  Dong_y
+}
+
+enum ENUM_EVENTINFORMATION_TRANG_THAI_PHE_DUYET_2 {
+  Can_phe_duyet
+  Khong_duyet
+  Dong_y
+}
+
+input EventInformationFiltersInput {
+  documentId: IDFilterInput
+  ma_su_kien: StringFilterInput
+  ten_su_kien: StringFilterInput
+  nguoi_phu_trach: StringFilterInput
+  chi_hoi: StringFilterInput
+  noi_dung_su_kien: StringFilterInput
+  thoi_gian_to_chuc: DateTimeFilterInput
+  dia_diem: StringFilterInput
+  trang_thai: StringFilterInput
+  loai_ve: TicketPricesManageFiltersInput
+  chi_danh_cho_hoi_vien: BooleanFilterInput
+  so_ve_toi_da: IntFilterInput
+  doanh_thu: FloatFilterInput
+  tong_so_ve: IntFilterInput
+  so_ve_da_check_in: IntFilterInput
+  so_ve_da_thanh_toan: IntFilterInput
+  nhan_vien_phe_duyet: StringFilterInput
+  ma_duy_nhat: StringFilterInput
+  dang_ky_su_kien: EventRegistrationFiltersInput
+  tin_nhan_zalo_oa: MiniappManagerFiltersInput
+  nha_tai_tro: SponsorFiltersInput
+  trang_thai_phe_duyet_1: StringFilterInput
+  trang_thai_phe_duyet_2: StringFilterInput
+  tong_so_tien_tai_tro: FloatFilterInput
+  phe_duyet_su_kien: EventApprovalFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [EventInformationFiltersInput]
+  or: [EventInformationFiltersInput]
+  not: EventInformationFiltersInput
+}
+
+input EventInformationInput {
+  ma_su_kien: String
+  ten_su_kien: String
+  nguoi_phu_trach: String
+  chi_hoi: String
+  noi_dung_su_kien: String
+  hinh_anh: ID
+  thoi_gian_to_chuc: DateTime
+  dia_diem: String
+  trang_thai: ENUM_EVENTINFORMATION_TRANG_THAI
+  loai_ve: [ID]
+  chi_danh_cho_hoi_vien: Boolean
+  so_ve_toi_da: Int
+  doanh_thu: Float
+  tong_so_ve: Int
+  so_ve_da_check_in: Int
+  so_ve_da_thanh_toan: Int
+  nhan_vien_phe_duyet: String
+  ma_duy_nhat: String
+  dang_ky_su_kien: [ID]
+  tin_nhan_zalo_oa: [ID]
+  nha_tai_tro: [ID]
+  trang_thai_phe_duyet_1: ENUM_EVENTINFORMATION_TRANG_THAI_PHE_DUYET_1
+  trang_thai_phe_duyet_2: ENUM_EVENTINFORMATION_TRANG_THAI_PHE_DUYET_2
+  tong_so_tien_tai_tro: Float
+  phe_duyet_su_kien: [ID]
+  publishedAt: DateTime
+}
+
+type EventInformation {
+  documentId: ID!
+  ma_su_kien: String!
+  ten_su_kien: String!
+  nguoi_phu_trach: String
+  chi_hoi: String
+  noi_dung_su_kien: String
+  hinh_anh: UploadFile
+  thoi_gian_to_chuc: DateTime
+  dia_diem: String
+  trang_thai: ENUM_EVENTINFORMATION_TRANG_THAI
+  loai_ve_connection(filters: TicketPricesManageFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): TicketPricesManageRelationResponseCollection
+  loai_ve(filters: TicketPricesManageFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [TicketPricesManage]!
+  chi_danh_cho_hoi_vien: Boolean
+  so_ve_toi_da: Int
+  doanh_thu: Float
+  tong_so_ve: Int
+  so_ve_da_check_in: Int
+  so_ve_da_thanh_toan: Int
+  nhan_vien_phe_duyet: String
+  ma_duy_nhat: String
+  dang_ky_su_kien_connection(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): EventRegistrationRelationResponseCollection
+  dang_ky_su_kien(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [EventRegistration]!
+  tin_nhan_zalo_oa_connection(filters: MiniappManagerFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): MiniappManagerRelationResponseCollection
+  tin_nhan_zalo_oa(filters: MiniappManagerFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [MiniappManager]!
+  nha_tai_tro_connection(filters: SponsorFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): SponsorRelationResponseCollection
+  nha_tai_tro(filters: SponsorFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [Sponsor]!
+  trang_thai_phe_duyet_1: ENUM_EVENTINFORMATION_TRANG_THAI_PHE_DUYET_1
+  trang_thai_phe_duyet_2: ENUM_EVENTINFORMATION_TRANG_THAI_PHE_DUYET_2
+  tong_so_tien_tai_tro: Float
+  phe_duyet_su_kien_connection(filters: EventApprovalFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): EventApprovalRelationResponseCollection
+  phe_duyet_su_kien(filters: EventApprovalFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [EventApproval]!
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type EventInformationEntityResponseCollection {
+  nodes: [EventInformation!]!
+  pageInfo: Pagination!
+}
+
+enum ENUM_EVENTREGISTRATION_TRANG_THAI {
+  Da_thanh_toan
+  Da_phat_hanh
+  Da_huy
+}
+
+enum ENUM_EVENTREGISTRATION_TRANG_THAI_THANH_TOAN {
+  Thanh_toan
+  Chua_thanh_toan
+  Hoan_ve
+}
+
+input EventRegistrationFiltersInput {
+  documentId: IDFilterInput
+  ma_ve: StringFilterInput
+  ten_nguoi_dang_ky: StringFilterInput
+  ten_su_kien: StringFilterInput
+  so_dien_thoai: StringFilterInput
+  email: StringFilterInput
+  da_check_in: BooleanFilterInput
+  gia_ve: FloatFilterInput
+  ngay_mua: DateFilterInput
+  trang_thai: StringFilterInput
+  trang_thai_thanh_toan: StringFilterInput
+  loai_ve: StringFilterInput
+  ngay_su_kien: DateFilterInput
+  ma_zalo: StringFilterInput
+  ma_zalo_oa: StringFilterInput
+  ve_chinh: BooleanFilterInput
+  hien_thi_loai_ve: StringFilterInput
+  hoi_vien: MemberInformationFiltersInput
+  nhan_vien_phe_duyet: StringFilterInput
+  danh_gia: IntFilterInput
+  ghi_chu_khach_hang: StringFilterInput
+  su_kien: EventInformationFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [EventRegistrationFiltersInput]
+  or: [EventRegistrationFiltersInput]
+  not: EventRegistrationFiltersInput
+}
+
+input EventRegistrationInput {
+  ma_ve: String
+  ten_nguoi_dang_ky: String
+  ten_su_kien: String
+  so_dien_thoai: String
+  email: String
+  da_check_in: Boolean
+  gia_ve: Float
+  ngay_mua: Date
+  trang_thai: ENUM_EVENTREGISTRATION_TRANG_THAI
+  trang_thai_thanh_toan: ENUM_EVENTREGISTRATION_TRANG_THAI_THANH_TOAN
+  loai_ve: String
+  ngay_su_kien: Date
+  ma_zalo: String
+  ma_zalo_oa: String
+  ve_chinh: Boolean
+  hien_thi_loai_ve: String
+  hoi_vien: ID
+  nhan_vien_phe_duyet: String
+  danh_gia: Int
+  ghi_chu_khach_hang: String
+  su_kien: ID
+  publishedAt: DateTime
+}
+
+type EventRegistration {
+  documentId: ID!
+  ma_ve: String!
+  ten_nguoi_dang_ky: String!
+  ten_su_kien: String
+  so_dien_thoai: String
+  email: String
+  da_check_in: Boolean
+  gia_ve: Float
+  ngay_mua: Date
+  trang_thai: ENUM_EVENTREGISTRATION_TRANG_THAI
+  trang_thai_thanh_toan: ENUM_EVENTREGISTRATION_TRANG_THAI_THANH_TOAN
+  loai_ve: String
+  ngay_su_kien: Date
+  ma_zalo: String
+  ma_zalo_oa: String
+  ve_chinh: Boolean
+  hien_thi_loai_ve: String
+  hoi_vien: MemberInformation
+  nhan_vien_phe_duyet: String
+  danh_gia: Int
+  ghi_chu_khach_hang: String
+  su_kien: EventInformation
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type EventRegistrationEntityResponseCollection {
+  nodes: [EventRegistration!]!
+  pageInfo: Pagination!
+}
+
+type EventRegistrationRelationResponseCollection {
+  nodes: [EventRegistration!]!
+}
+
+input ExecutiveCommitteeFiltersInput {
+  documentId: IDFilterInput
+  ma_code: StringFilterInput
+  ho_ten_day_du: StringFilterInput
+  chuc_vu_cap_hoi: StringFilterInput
+  chuc_vu_cap_chi_hoi: StringFilterInput
+  chi_hoi: ChapterFiltersInput
+  hoi_vien: MemberInformationFiltersInput
+  ten_cong_ty: StringFilterInput
+  chuc_vu_trong_cong_ty: StringFilterInput
+  nhiem_ky_ban_chap_hanh: BooleanFilterInput
+  nhiem_ky: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [ExecutiveCommitteeFiltersInput]
+  or: [ExecutiveCommitteeFiltersInput]
+  not: ExecutiveCommitteeFiltersInput
+}
+
+input ExecutiveCommitteeInput {
+  ma_code: String
+  ho_ten_day_du: String
+  chuc_vu_cap_hoi: String
+  chuc_vu_cap_chi_hoi: String
+  chi_hoi: ID
+  hoi_vien: ID
+  ten_cong_ty: String
+  hinh_anh: ID
+  chuc_vu_trong_cong_ty: String
+  nhiem_ky_ban_chap_hanh: Boolean
+  nhiem_ky: String
+  publishedAt: DateTime
+}
+
+type ExecutiveCommittee {
+  documentId: ID!
+  ma_code: String!
+  ho_ten_day_du: String!
+  chuc_vu_cap_hoi: String
+  chuc_vu_cap_chi_hoi: String
+  chi_hoi: Chapter
+  hoi_vien: MemberInformation
+  ten_cong_ty: String
+  hinh_anh: UploadFile
+  chuc_vu_trong_cong_ty: String
+  nhiem_ky_ban_chap_hanh: Boolean
+  nhiem_ky: String
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type ExecutiveCommitteeEntityResponseCollection {
+  nodes: [ExecutiveCommittee!]!
+  pageInfo: Pagination!
+}
+
+type ExecutiveCommitteeRelationResponseCollection {
+  nodes: [ExecutiveCommittee!]!
+}
+
+enum ENUM_MEMBERBENEFITS_LOAI_UU_DAI {
+  Giam_gia
+  Qua_tang
+  Dich_vu_mien_phi
+  Uu_tien
+  Khac
+}
+
+enum ENUM_MEMBERBENEFITS_DON_VI_GIA_TRI {
+  VND
+  Phan_tram
+  Diem
+  Lan
+}
+
+enum ENUM_MEMBERBENEFITS_TRANG_THAI {
+  Dang_hoat_dong
+  Tam_ngung
+  Het_han
+  Chua_ap_dung
+}
+
+input MemberBenefitsFiltersInput {
+  documentId: IDFilterInput
+  ma_code: StringFilterInput
+  ten_uu_dai: StringFilterInput
+  mo_ta: StringFilterInput
+  loai_uu_dai: StringFilterInput
+  gia_tri_uu_dai: FloatFilterInput
+  don_vi_gia_tri: StringFilterInput
+  ngay_bat_dau: DateFilterInput
+  ngay_ket_thuc: DateFilterInput
+  trang_thai: StringFilterInput
+  dieu_kien_ap_dung: StringFilterInput
+  doi_tac: StringFilterInput
+  thong_tin_lien_he: StringFilterInput
+  so_luong_gioi_han: IntFilterInput
+  da_su_dung: IntFilterInput
+  ghi_chu: StringFilterInput
+  nguoi_tao: StringFilterInput
+  hoi_vien_ap_dung: MemberInformationFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [MemberBenefitsFiltersInput]
+  or: [MemberBenefitsFiltersInput]
+  not: MemberBenefitsFiltersInput
+}
+
+input MemberBenefitsInput {
+  ma_code: String
+  ten_uu_dai: String
+  mo_ta: String
+  loai_uu_dai: ENUM_MEMBERBENEFITS_LOAI_UU_DAI
+  gia_tri_uu_dai: Float
+  don_vi_gia_tri: ENUM_MEMBERBENEFITS_DON_VI_GIA_TRI
+  ngay_bat_dau: Date
+  ngay_ket_thuc: Date
+  trang_thai: ENUM_MEMBERBENEFITS_TRANG_THAI
+  dieu_kien_ap_dung: String
+  doi_tac: String
+  thong_tin_lien_he: String
+  so_luong_gioi_han: Int
+  da_su_dung: Int
+  hinh_anh: ID
+  ghi_chu: String
+  nguoi_tao: String
+  hoi_vien_ap_dung: [ID]
+  publishedAt: DateTime
+}
+
+type MemberBenefits {
+  documentId: ID!
+  ma_code: String!
+  ten_uu_dai: String!
+  mo_ta: String
+  loai_uu_dai: ENUM_MEMBERBENEFITS_LOAI_UU_DAI
+  gia_tri_uu_dai: Float
+  don_vi_gia_tri: ENUM_MEMBERBENEFITS_DON_VI_GIA_TRI
+  ngay_bat_dau: Date!
+  ngay_ket_thuc: Date
+  trang_thai: ENUM_MEMBERBENEFITS_TRANG_THAI
+  dieu_kien_ap_dung: String
+  doi_tac: String
+  thong_tin_lien_he: String
+  so_luong_gioi_han: Int
+  da_su_dung: Int
+  hinh_anh: UploadFile
+  ghi_chu: String
+  nguoi_tao: String
+  hoi_vien_ap_dung_connection(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): MemberInformationRelationResponseCollection
+  hoi_vien_ap_dung(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [MemberInformation]!
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type MemberBenefitsEntityResponseCollection {
+  nodes: [MemberBenefits!]!
+  pageInfo: Pagination!
+}
+
+type MemberBenefitsRelationResponseCollection {
+  nodes: [MemberBenefits!]!
+}
+
+enum ENUM_MEMBERINFORMATION_SALUTATION {
+  Anh
+  Chi
+}
+
+enum ENUM_MEMBERINFORMATION_STATUS {
+  Dang_hoat_dong
+  Ngung_hoat_dong
+  Roi_hoi
+}
+
+input MemberInformationFiltersInput {
+  documentId: IDFilterInput
+  code: StringFilterInput
+  full_name: StringFilterInput
+  last_name: StringFilterInput
+  first_name: StringFilterInput
+  salutation: StringFilterInput
+  academic_degree: StringFilterInput
+  ethnicity: StringFilterInput
+  date_of_birth: DateFilterInput
+  phone_number_1: StringFilterInput
+  phone_number_2: StringFilterInput
+  zalo: StringFilterInput
+  email_1: StringFilterInput
+  email_2: StringFilterInput
+  home_address: StringFilterInput
+  province_city: StringFilterInput
+  district: StringFilterInput
+  company: StringFilterInput
+  company_address: StringFilterInput
+  company_establishment_date: DateFilterInput
+  number_of_employees: IntFilterInput
+  business_industry: StringFilterInput
+  business_products_services: StringFilterInput
+  position: StringFilterInput
+  office_phone: StringFilterInput
+  website: StringFilterInput
+  assistant_name: StringFilterInput
+  assistant_phone: StringFilterInput
+  assistant_email: StringFilterInput
+  member_type: StringFilterInput
+  status: StringFilterInput
+  join_date: DateFilterInput
+  inactive_date: DateFilterInput
+  chapter: ChapterFiltersInput
+  notes: StringFilterInput
+  membership_fee_expiration_date: DateFilterInput
+  tai_khoan: AccountFiltersInput
+  hoi_phi: MembershipFeeFiltersInput
+  events_attended: StringFilterInput
+  number_of_posts: StringFilterInput
+  ban_chap_hanh: ExecutiveCommitteeFiltersInput
+  tai_tro: SponsorFiltersInput
+  secretary_in_charge: StringFilterInput
+  former_executive_committee_club: BooleanFilterInput
+  bai_viet: PostFiltersInput
+  dang_ky_su_kien: EventRegistrationFiltersInput
+  uu_dai: MemberBenefitsFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [MemberInformationFiltersInput]
+  or: [MemberInformationFiltersInput]
+  not: MemberInformationFiltersInput
+}
+
+input MemberInformationInput {
+  code: String
+  full_name: String
+  last_name: String
+  first_name: String
+  salutation: ENUM_MEMBERINFORMATION_SALUTATION
+  academic_degree: String
+  ethnicity: String
+  date_of_birth: Date
+  phone_number_1: String
+  phone_number_2: String
+  zalo: String
+  email_1: String
+  email_2: String
+  home_address: String
+  province_city: String
+  district: String
+  company: String
+  company_address: String
+  company_establishment_date: Date
+  number_of_employees: Int
+  business_industry: String
+  business_products_services: String
+  position: String
+  office_phone: String
+  website: String
+  assistant_name: String
+  assistant_phone: String
+  assistant_email: String
+  member_type: String
+  status: ENUM_MEMBERINFORMATION_STATUS
+  join_date: Date
+  inactive_date: Date
+  chapter: ID
+  member_image: ID
+  notes: String
+  membership_fee_expiration_date: Date
+  tai_khoan: [ID]
+  hoi_phi: [ID]
+  events_attended: String
+  number_of_posts: String
+  ban_chap_hanh: [ID]
+  tai_tro: [ID]
+  secretary_in_charge: String
+  former_executive_committee_club: Boolean
+  bai_viet: [ID]
+  dang_ky_su_kien: [ID]
+  uu_dai: [ID]
+  publishedAt: DateTime
+}
+
+type MemberInformation {
+  documentId: ID!
+  code: String
+  full_name: String!
+  last_name: String
+  first_name: String
+  salutation: ENUM_MEMBERINFORMATION_SALUTATION
+  academic_degree: String
+  ethnicity: String
+  date_of_birth: Date
+  phone_number_1: String
+  phone_number_2: String
+  zalo: String
+  email_1: String
+  email_2: String
+  home_address: String
+  province_city: String
+  district: String
+  company: String
+  company_address: String
+  company_establishment_date: Date
+  number_of_employees: Int
+  business_industry: String
+  business_products_services: String
+  position: String
+  office_phone: String
+  website: String
+  assistant_name: String
+  assistant_phone: String
+  assistant_email: String
+  member_type: String
+  status: ENUM_MEMBERINFORMATION_STATUS
+  join_date: Date
+  inactive_date: Date
+  chapter: Chapter
+  member_image: UploadFile
+  notes: String
+  membership_fee_expiration_date: Date
+  tai_khoan_connection(filters: AccountFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): AccountRelationResponseCollection
+  tai_khoan(filters: AccountFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [Account]!
+  hoi_phi_connection(filters: MembershipFeeFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): MembershipFeeRelationResponseCollection
+  hoi_phi(filters: MembershipFeeFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [MembershipFee]!
+  events_attended: String
+  number_of_posts: String
+  ban_chap_hanh_connection(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): ExecutiveCommitteeRelationResponseCollection
+  ban_chap_hanh(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [ExecutiveCommittee]!
+  tai_tro_connection(filters: SponsorFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): SponsorRelationResponseCollection
+  tai_tro(filters: SponsorFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [Sponsor]!
+  secretary_in_charge: String
+  former_executive_committee_club: Boolean
+  bai_viet_connection(filters: PostFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): PostRelationResponseCollection
+  bai_viet(filters: PostFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [Post]!
+  dang_ky_su_kien_connection(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): EventRegistrationRelationResponseCollection
+  dang_ky_su_kien(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [EventRegistration]!
+  uu_dai_connection(filters: MemberBenefitsFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): MemberBenefitsRelationResponseCollection
+  uu_dai(filters: MemberBenefitsFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [MemberBenefits]!
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type MemberInformationEntityResponseCollection {
+  nodes: [MemberInformation!]!
+  pageInfo: Pagination!
+}
+
+type MemberInformationRelationResponseCollection {
+  nodes: [MemberInformation!]!
+}
+
+input MembershipFeeFiltersInput {
+  documentId: IDFilterInput
+  ma_bien_lai: StringFilterInput
+  hoi_vien: MemberInformationFiltersInput
+  chi_hoi: StringFilterInput
+  so_tien_da_dong: FloatFilterInput
+  nam_dong_phi: StringFilterInput
+  ngay_dong_phi: DateFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [MembershipFeeFiltersInput]
+  or: [MembershipFeeFiltersInput]
+  not: MembershipFeeFiltersInput
+}
+
+input MembershipFeeInput {
+  ma_bien_lai: String
+  hoi_vien: ID
+  chi_hoi: String
+  so_tien_da_dong: Float
+  nam_dong_phi: String
+  ngay_dong_phi: Date
+  publishedAt: DateTime
+}
+
+type MembershipFee {
+  documentId: ID!
+  ma_bien_lai: String!
+  hoi_vien: MemberInformation
+  chi_hoi: String
+  so_tien_da_dong: Float
+  nam_dong_phi: String
+  ngay_dong_phi: Date
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type MembershipFeeEntityResponseCollection {
+  nodes: [MembershipFee!]!
+  pageInfo: Pagination!
+}
+
+type MembershipFeeRelationResponseCollection {
+  nodes: [MembershipFee!]!
+}
+
+enum ENUM_MINIAPPMANAGER_TUY_CHON {
+  Testing
+  Da_Gui_Testing
+}
+
+enum ENUM_MINIAPPMANAGER_LOAI_TIN_NHAN {
+  Tin_nhan_He_Thong
+  Dang_ky_ve_thanh_cong
+  Phat_hanh_ve_thanh_cong
+  Tin_nhac_truoc_1_ngay_dien_ra_su_kien
+  Tin_nhac_dau_ngay_dien_ra_su_kien
+  Tin_nhac_nho_danh_gia_sau_su_kien
+}
+
+enum ENUM_MINIAPPMANAGER_LOAI_TIN_NHAN_HE_THONG {
+  Xac_thuc_Hoi_Vien
+  Dang_ky_hoi_vien
+  Tin_lien_he
+}
+
+input MiniappManagerFiltersInput {
+  documentId: IDFilterInput
+  ma_code: StringFilterInput
+  noi_dung_zalo_oa: StringFilterInput
+  thong_tin_lien_he: StringFilterInput
+  tuy_chon: StringFilterInput
+  su_kien: EventInformationFiltersInput
+  loai_tin_nhan: StringFilterInput
+  loai_tin_nhan_he_thong: StringFilterInput
+  trang_thai_su_kien: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [MiniappManagerFiltersInput]
+  or: [MiniappManagerFiltersInput]
+  not: MiniappManagerFiltersInput
+}
+
+input MiniappManagerInput {
+  ma_code: String
+  noi_dung_zalo_oa: String
+  thong_tin_lien_he: String
+  tuy_chon: ENUM_MINIAPPMANAGER_TUY_CHON
+  su_kien: ID
+  loai_tin_nhan: ENUM_MINIAPPMANAGER_LOAI_TIN_NHAN
+  loai_tin_nhan_he_thong: ENUM_MINIAPPMANAGER_LOAI_TIN_NHAN_HE_THONG
+  trang_thai_su_kien: String
+  publishedAt: DateTime
+}
+
+type MiniappManager {
+  documentId: ID!
+  ma_code: String!
+  noi_dung_zalo_oa: String
+  thong_tin_lien_he: String
+  tuy_chon: ENUM_MINIAPPMANAGER_TUY_CHON
+  su_kien: EventInformation
+  loai_tin_nhan: ENUM_MINIAPPMANAGER_LOAI_TIN_NHAN
+  loai_tin_nhan_he_thong: ENUM_MINIAPPMANAGER_LOAI_TIN_NHAN_HE_THONG
+  trang_thai_su_kien: String
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type MiniappManagerEntityResponseCollection {
+  nodes: [MiniappManager!]!
+  pageInfo: Pagination!
+}
+
+type MiniappManagerRelationResponseCollection {
+  nodes: [MiniappManager!]!
+}
+
+enum ENUM_POST_TRANG_THAI {
+  Da_Duyet
+  Can_Duyet
+  Khong_Duyet
+}
+
+input PostFiltersInput {
+  documentId: IDFilterInput
+  ma_code: StringFilterInput
+  tieu_de: StringFilterInput
+  noi_dung: StringFilterInput
+  tac_gia: StringFilterInput
+  ngay_dang: DateTimeFilterInput
+  trang_thai: StringFilterInput
+  hoi_vien: MemberInformationFiltersInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [PostFiltersInput]
+  or: [PostFiltersInput]
+  not: PostFiltersInput
+}
+
+input PostInput {
+  ma_code: String
+  tieu_de: String
+  noi_dung: String
+  tac_gia: String
+  hinh_anh_minh_hoa: ID
+  ngay_dang: DateTime
+  trang_thai: ENUM_POST_TRANG_THAI
+  hoi_vien: ID
+  publishedAt: DateTime
+}
+
+type Post {
+  documentId: ID!
+  ma_code: String!
+  tieu_de: String!
+  noi_dung: String
+  tac_gia: String
+  hinh_anh_minh_hoa: UploadFile
+  ngay_dang: DateTime
+  trang_thai: ENUM_POST_TRANG_THAI
+  hoi_vien: MemberInformation
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type PostEntityResponseCollection {
+  nodes: [Post!]!
+  pageInfo: Pagination!
+}
+
+type PostRelationResponseCollection {
+  nodes: [Post!]!
+}
+
+enum ENUM_POTENTIALMEMBER_TUY_CHON {
+  Gia_Nhap_Hoi
+  Cham_soc
+  Suy_Nghi_Them
+}
+
+input PotentialMemberFiltersInput {
+  documentId: IDFilterInput
+  ma_code: StringFilterInput
+  ho_ten_day_du: StringFilterInput
+  email: StringFilterInput
+  so_dien_thoai: StringFilterInput
+  ghi_chu: StringFilterInput
+  nguoi_phu_trach: StringFilterInput
+  tuy_chon: StringFilterInput
+  ngay_dang_ky: DateTimeFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [PotentialMemberFiltersInput]
+  or: [PotentialMemberFiltersInput]
+  not: PotentialMemberFiltersInput
+}
+
+input PotentialMemberInput {
+  ma_code: String
+  ho_ten_day_du: String
+  email: String
+  so_dien_thoai: String
+  ghi_chu: String
+  nguoi_phu_trach: String
+  tuy_chon: ENUM_POTENTIALMEMBER_TUY_CHON
+  ngay_dang_ky: DateTime
+  publishedAt: DateTime
+}
+
+type PotentialMember {
+  documentId: ID!
+  ma_code: String!
+  ho_ten_day_du: String!
+  email: String
+  so_dien_thoai: String
+  ghi_chu: String
+  nguoi_phu_trach: String
+  tuy_chon: ENUM_POTENTIALMEMBER_TUY_CHON
+  ngay_dang_ky: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type PotentialMemberEntityResponseCollection {
+  nodes: [PotentialMember!]!
+  pageInfo: Pagination!
+}
+
+enum ENUM_SPONSOR_TRANG_THAI_PHE_DUYET {
+  Moi
+  Duyet
+  Khong_Duyet
+}
+
+enum ENUM_SPONSOR_TRANG_THAI {
+  Hien_Thi
+  Khong_hien_thi
+  Het_han
+}
+
+enum ENUM_SPONSOR_HANG {
+  Vang
+  Bac
+  Dong
+  Bach_kim
+  Dong_hanh
+}
+
+enum ENUM_SPONSOR_LOAI_TAI_TRO {
+  Tai_Tro_su_kien
+  Tai_tro_dong_hanh
+}
+
+enum ENUM_SPONSOR_HINH_THUC_TAI_TRO {
+  Hien_vat
+  Hien_Kim
+  Dong_Hanh
+}
+
+enum ENUM_SPONSOR_TRANG_THAI_THANH_TOAN {
+  Da_Nhan
+  Moi
+  Huy
+}
+
+input SponsorFiltersInput {
+  documentId: IDFilterInput
+  ma_code: StringFilterInput
+  ten_cong_ty: StringFilterInput
+  su_kien: EventInformationFiltersInput
+  trang_thai_phe_duyet: StringFilterInput
+  trang_thai: StringFilterInput
+  hang: StringFilterInput
+  hoi_vien: MemberInformationFiltersInput
+  bai_viet: StringFilterInput
+  lien_ket: StringFilterInput
+  loai_tai_tro: StringFilterInput
+  su_kien_tham_chieu: EventInformationFiltersInput
+  hinh_thuc_tai_tro: StringFilterInput
+  so_tien_tai_tro: FloatFilterInput
+  ngay_tai_tro: DateTimeFilterInput
+  nguoi_phu_trach: StringFilterInput
+  trang_thai_thanh_toan: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [SponsorFiltersInput]
+  or: [SponsorFiltersInput]
+  not: SponsorFiltersInput
+}
+
+input SponsorInput {
+  ma_code: String
+  ten_cong_ty: String
+  logo: ID
+  su_kien: ID
+  trang_thai_phe_duyet: ENUM_SPONSOR_TRANG_THAI_PHE_DUYET
+  trang_thai: ENUM_SPONSOR_TRANG_THAI
+  hang: ENUM_SPONSOR_HANG
+  hoi_vien: ID
+  bai_viet: String
+  lien_ket: String
+  loai_tai_tro: ENUM_SPONSOR_LOAI_TAI_TRO
+  su_kien_tham_chieu: ID
+  hinh_thuc_tai_tro: ENUM_SPONSOR_HINH_THUC_TAI_TRO
+  so_tien_tai_tro: Float
+  ngay_tai_tro: DateTime
+  nguoi_phu_trach: String
+  trang_thai_thanh_toan: ENUM_SPONSOR_TRANG_THAI_THANH_TOAN
+  publishedAt: DateTime
+}
+
+type Sponsor {
+  documentId: ID!
+  ma_code: String!
+  ten_cong_ty: String
+  logo: UploadFile
+  su_kien: EventInformation
+  trang_thai_phe_duyet: ENUM_SPONSOR_TRANG_THAI_PHE_DUYET
+  trang_thai: ENUM_SPONSOR_TRANG_THAI
+  hang: ENUM_SPONSOR_HANG
+  hoi_vien: MemberInformation
+  bai_viet: String
+  lien_ket: String
+  loai_tai_tro: ENUM_SPONSOR_LOAI_TAI_TRO
+  su_kien_tham_chieu: EventInformation
+  hinh_thuc_tai_tro: ENUM_SPONSOR_HINH_THUC_TAI_TRO
+  so_tien_tai_tro: Float
+  ngay_tai_tro: DateTime
+  nguoi_phu_trach: String
+  trang_thai_thanh_toan: ENUM_SPONSOR_TRANG_THAI_THANH_TOAN
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type SponsorEntityResponseCollection {
+  nodes: [Sponsor!]!
+  pageInfo: Pagination!
+}
+
+type SponsorRelationResponseCollection {
+  nodes: [Sponsor!]!
+}
+
+enum ENUM_TICKETPRICESMANAGE_LOAI_VE {
+  Lien_he
+  Mien_phi
+  Tra_phi
+}
+
+input TicketPricesManageFiltersInput {
+  documentId: IDFilterInput
+  ma_loai_ve: StringFilterInput
+  su_kien: EventInformationFiltersInput
+  ten_hien_thi_ve: StringFilterInput
+  gia: FloatFilterInput
+  thoi_gian_ket_thuc: DateTimeFilterInput
+  thoi_gian_bat_dau: DateTimeFilterInput
+  chi_danh_cho_hoi_vien: BooleanFilterInput
+  so_luong_ve_phat_hanh: IntFilterInput
+  loai_ve: StringFilterInput
+  ve_nhom: BooleanFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [TicketPricesManageFiltersInput]
+  or: [TicketPricesManageFiltersInput]
+  not: TicketPricesManageFiltersInput
+}
+
+input TicketPricesManageInput {
+  ma_loai_ve: String
+  su_kien: ID
+  ten_hien_thi_ve: String
+  gia: Float
+  thoi_gian_ket_thuc: DateTime
+  thoi_gian_bat_dau: DateTime
+  chi_danh_cho_hoi_vien: Boolean
+  so_luong_ve_phat_hanh: Int
+  loai_ve: ENUM_TICKETPRICESMANAGE_LOAI_VE
+  ve_nhom: Boolean
+  publishedAt: DateTime
+}
+
+type TicketPricesManage {
+  documentId: ID!
+  ma_loai_ve: String!
+  su_kien: EventInformation
+  ten_hien_thi_ve: String!
+  gia: Float
+  thoi_gian_ket_thuc: DateTime
+  thoi_gian_bat_dau: DateTime
+  chi_danh_cho_hoi_vien: Boolean
+  so_luong_ve_phat_hanh: Int
+  loai_ve: ENUM_TICKETPRICESMANAGE_LOAI_VE
+  ve_nhom: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type TicketPricesManageEntityResponseCollection {
+  nodes: [TicketPricesManage!]!
+  pageInfo: Pagination!
+}
+
+type TicketPricesManageRelationResponseCollection {
+  nodes: [TicketPricesManage!]!
+}
+
+union GenericMorph = UploadFile | I18NLocale | ReviewWorkflowsWorkflow | ReviewWorkflowsWorkflowStage | UsersPermissionsPermission | UsersPermissionsRole | UsersPermissionsUser | Account | Bank | Bdsd | Chapter | Company | EventApproval | EventInformation | EventRegistration | ExecutiveCommittee | MemberBenefits | MemberInformation | MembershipFee | MiniappManager | Post | PotentialMember | Sponsor | TicketPricesManage
+
+input FileInfoInput {
+  name: String
+  alternativeText: String
+  caption: String
+}
+
+type UsersPermissionsMe {
+  id: ID!
+  documentId: ID!
+  username: String!
+  email: String
+  confirmed: Boolean
+  blocked: Boolean
+  role: UsersPermissionsMeRole
+}
+
+type UsersPermissionsMeRole {
+  id: ID!
+  name: String!
+  description: String
+  type: String
+}
+
+input UsersPermissionsRegisterInput {
+  username: String!
+  email: String!
+  password: String!
+}
+
+input UsersPermissionsLoginInput {
+  identifier: String!
+  password: String!
+  provider: String! = "local"
+}
+
+type UsersPermissionsPasswordPayload {
+  ok: Boolean!
+}
+
+type UsersPermissionsLoginPayload {
+  jwt: String
+  user: UsersPermissionsMe!
+}
+
+type UsersPermissionsCreateRolePayload {
+  ok: Boolean!
+}
+
+type UsersPermissionsUpdateRolePayload {
+  ok: Boolean!
+}
+
+type UsersPermissionsDeleteRolePayload {
+  ok: Boolean!
+}
+
+input PaginationArg {
+  page: Int
+  pageSize: Int
+  start: Int
+  limit: Int
+}
+
+type Query {
+  uploadFile(documentId: ID!, status: PublicationStatus = PUBLISHED): UploadFile
+  uploadFiles_connection(filters: UploadFileFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): UploadFileEntityResponseCollection
+  uploadFiles(filters: UploadFileFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [UploadFile]!
+  i18NLocale(documentId: ID!, status: PublicationStatus = PUBLISHED): I18NLocale
+  i18NLocales_connection(filters: I18NLocaleFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): I18NLocaleEntityResponseCollection
+  i18NLocales(filters: I18NLocaleFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [I18NLocale]!
+  reviewWorkflowsWorkflow(documentId: ID!, status: PublicationStatus = PUBLISHED): ReviewWorkflowsWorkflow
+  reviewWorkflowsWorkflows_connection(filters: ReviewWorkflowsWorkflowFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): ReviewWorkflowsWorkflowEntityResponseCollection
+  reviewWorkflowsWorkflows(filters: ReviewWorkflowsWorkflowFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [ReviewWorkflowsWorkflow]!
+  reviewWorkflowsWorkflowStage(documentId: ID!, status: PublicationStatus = PUBLISHED): ReviewWorkflowsWorkflowStage
+  reviewWorkflowsWorkflowStages_connection(filters: ReviewWorkflowsWorkflowStageFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): ReviewWorkflowsWorkflowStageEntityResponseCollection
+  reviewWorkflowsWorkflowStages(filters: ReviewWorkflowsWorkflowStageFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [ReviewWorkflowsWorkflowStage]!
+  usersPermissionsRole(documentId: ID!, status: PublicationStatus = PUBLISHED): UsersPermissionsRole
+  usersPermissionsRoles_connection(filters: UsersPermissionsRoleFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): UsersPermissionsRoleEntityResponseCollection
+  usersPermissionsRoles(filters: UsersPermissionsRoleFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [UsersPermissionsRole]!
+  usersPermissionsUser(documentId: ID!, status: PublicationStatus = PUBLISHED): UsersPermissionsUser
+  usersPermissionsUsers_connection(filters: UsersPermissionsUserFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): UsersPermissionsUserEntityResponseCollection
+  usersPermissionsUsers(filters: UsersPermissionsUserFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [UsersPermissionsUser]!
+  account(documentId: ID!, status: PublicationStatus = PUBLISHED): Account
+  accounts_connection(filters: AccountFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): AccountEntityResponseCollection
+  accounts(filters: AccountFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Account]!
+  bank(documentId: ID!, status: PublicationStatus = PUBLISHED): Bank
+  banks_connection(filters: BankFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): BankEntityResponseCollection
+  banks(filters: BankFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Bank]!
+  bdsd(documentId: ID!, status: PublicationStatus = PUBLISHED): Bdsd
+  bdsds_connection(filters: BdsdFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): BdsdEntityResponseCollection
+  bdsds(filters: BdsdFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Bdsd]!
+  chapter(documentId: ID!, status: PublicationStatus = PUBLISHED): Chapter
+  chapters_connection(filters: ChapterFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): ChapterEntityResponseCollection
+  chapters(filters: ChapterFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Chapter]!
+  company(documentId: ID!, status: PublicationStatus = PUBLISHED): Company
+  companies_connection(filters: CompanyFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): CompanyEntityResponseCollection
+  companies(filters: CompanyFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Company]!
+  eventApproval(documentId: ID!, status: PublicationStatus = PUBLISHED): EventApproval
+  eventApprovals_connection(filters: EventApprovalFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): EventApprovalEntityResponseCollection
+  eventApprovals(filters: EventApprovalFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [EventApproval]!
+  eventInformation(documentId: ID!, status: PublicationStatus = PUBLISHED): EventInformation
+  eventInformations_connection(filters: EventInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): EventInformationEntityResponseCollection
+  eventInformations(filters: EventInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [EventInformation]!
+  eventRegistration(documentId: ID!, status: PublicationStatus = PUBLISHED): EventRegistration
+  eventRegistrations_connection(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): EventRegistrationEntityResponseCollection
+  eventRegistrations(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [EventRegistration]!
+  executiveCommittee(documentId: ID!, status: PublicationStatus = PUBLISHED): ExecutiveCommittee
+  executiveCommittees_connection(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): ExecutiveCommitteeEntityResponseCollection
+  executiveCommittees(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [ExecutiveCommittee]!
+  memberBenefits(documentId: ID!, status: PublicationStatus = PUBLISHED): MemberBenefits
+  memberBenefitItems_connection(filters: MemberBenefitsFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): MemberBenefitsEntityResponseCollection
+  memberBenefitItems(filters: MemberBenefitsFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [MemberBenefits]!
+  memberInformation(documentId: ID!, status: PublicationStatus = PUBLISHED): MemberInformation
+  memberInformations_connection(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): MemberInformationEntityResponseCollection
+  memberInformations(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [MemberInformation]!
+  membershipFee(documentId: ID!, status: PublicationStatus = PUBLISHED): MembershipFee
+  membershipFees_connection(filters: MembershipFeeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): MembershipFeeEntityResponseCollection
+  membershipFees(filters: MembershipFeeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [MembershipFee]!
+  miniappManager(documentId: ID!, status: PublicationStatus = PUBLISHED): MiniappManager
+  miniappManagers_connection(filters: MiniappManagerFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): MiniappManagerEntityResponseCollection
+  miniappManagers(filters: MiniappManagerFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [MiniappManager]!
+  post(documentId: ID!, status: PublicationStatus = PUBLISHED): Post
+  posts_connection(filters: PostFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): PostEntityResponseCollection
+  posts(filters: PostFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Post]!
+  potentialMember(documentId: ID!, status: PublicationStatus = PUBLISHED): PotentialMember
+  potentialMembers_connection(filters: PotentialMemberFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): PotentialMemberEntityResponseCollection
+  potentialMembers(filters: PotentialMemberFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [PotentialMember]!
+  sponsor(documentId: ID!, status: PublicationStatus = PUBLISHED): Sponsor
+  sponsors_connection(filters: SponsorFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): SponsorEntityResponseCollection
+  sponsors(filters: SponsorFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Sponsor]!
+  ticketPricesManage(documentId: ID!, status: PublicationStatus = PUBLISHED): TicketPricesManage
+  ticketPricesManages_connection(filters: TicketPricesManageFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): TicketPricesManageEntityResponseCollection
+  ticketPricesManages(filters: TicketPricesManageFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [TicketPricesManage]!
+  me: UsersPermissionsMe
+}
+
+type Mutation {
+  createReviewWorkflowsWorkflow(status: PublicationStatus = PUBLISHED, data: ReviewWorkflowsWorkflowInput!): ReviewWorkflowsWorkflow
+  updateReviewWorkflowsWorkflow(documentId: ID!, status: PublicationStatus = PUBLISHED, data: ReviewWorkflowsWorkflowInput!): ReviewWorkflowsWorkflow
+  deleteReviewWorkflowsWorkflow(documentId: ID!): DeleteMutationResponse
+  createReviewWorkflowsWorkflowStage(status: PublicationStatus = PUBLISHED, data: ReviewWorkflowsWorkflowStageInput!): ReviewWorkflowsWorkflowStage
+  updateReviewWorkflowsWorkflowStage(documentId: ID!, status: PublicationStatus = PUBLISHED, data: ReviewWorkflowsWorkflowStageInput!): ReviewWorkflowsWorkflowStage
+  deleteReviewWorkflowsWorkflowStage(documentId: ID!): DeleteMutationResponse
+  createAccount(status: PublicationStatus = PUBLISHED, data: AccountInput!): Account
+  updateAccount(documentId: ID!, status: PublicationStatus = PUBLISHED, data: AccountInput!): Account
+  deleteAccount(documentId: ID!): DeleteMutationResponse
+  createBank(status: PublicationStatus = PUBLISHED, data: BankInput!): Bank
+  updateBank(documentId: ID!, status: PublicationStatus = PUBLISHED, data: BankInput!): Bank
+  deleteBank(documentId: ID!): DeleteMutationResponse
+  createBdsd(status: PublicationStatus = PUBLISHED, data: BdsdInput!): Bdsd
+  updateBdsd(documentId: ID!, status: PublicationStatus = PUBLISHED, data: BdsdInput!): Bdsd
+  deleteBdsd(documentId: ID!): DeleteMutationResponse
+  createChapter(status: PublicationStatus = PUBLISHED, data: ChapterInput!): Chapter
+  updateChapter(documentId: ID!, status: PublicationStatus = PUBLISHED, data: ChapterInput!): Chapter
+  deleteChapter(documentId: ID!): DeleteMutationResponse
+  createCompany(status: PublicationStatus = PUBLISHED, data: CompanyInput!): Company
+  updateCompany(documentId: ID!, status: PublicationStatus = PUBLISHED, data: CompanyInput!): Company
+  deleteCompany(documentId: ID!): DeleteMutationResponse
+  createEventApproval(status: PublicationStatus = PUBLISHED, data: EventApprovalInput!): EventApproval
+  updateEventApproval(documentId: ID!, status: PublicationStatus = PUBLISHED, data: EventApprovalInput!): EventApproval
+  deleteEventApproval(documentId: ID!): DeleteMutationResponse
+  createEventInformation(status: PublicationStatus = PUBLISHED, data: EventInformationInput!): EventInformation
+  updateEventInformation(documentId: ID!, status: PublicationStatus = PUBLISHED, data: EventInformationInput!): EventInformation
+  deleteEventInformation(documentId: ID!): DeleteMutationResponse
+  createEventRegistration(status: PublicationStatus = PUBLISHED, data: EventRegistrationInput!): EventRegistration
+  updateEventRegistration(documentId: ID!, status: PublicationStatus = PUBLISHED, data: EventRegistrationInput!): EventRegistration
+  deleteEventRegistration(documentId: ID!): DeleteMutationResponse
+  createExecutiveCommittee(status: PublicationStatus = PUBLISHED, data: ExecutiveCommitteeInput!): ExecutiveCommittee
+  updateExecutiveCommittee(documentId: ID!, status: PublicationStatus = PUBLISHED, data: ExecutiveCommitteeInput!): ExecutiveCommittee
+  deleteExecutiveCommittee(documentId: ID!): DeleteMutationResponse
+  createMemberBenefits(status: PublicationStatus = PUBLISHED, data: MemberBenefitsInput!): MemberBenefits
+  updateMemberBenefits(documentId: ID!, status: PublicationStatus = PUBLISHED, data: MemberBenefitsInput!): MemberBenefits
+  deleteMemberBenefits(documentId: ID!): DeleteMutationResponse
+  createMemberInformation(status: PublicationStatus = PUBLISHED, data: MemberInformationInput!): MemberInformation
+  updateMemberInformation(documentId: ID!, status: PublicationStatus = PUBLISHED, data: MemberInformationInput!): MemberInformation
+  deleteMemberInformation(documentId: ID!): DeleteMutationResponse
+  createMembershipFee(status: PublicationStatus = PUBLISHED, data: MembershipFeeInput!): MembershipFee
+  updateMembershipFee(documentId: ID!, status: PublicationStatus = PUBLISHED, data: MembershipFeeInput!): MembershipFee
+  deleteMembershipFee(documentId: ID!): DeleteMutationResponse
+  createMiniappManager(status: PublicationStatus = PUBLISHED, data: MiniappManagerInput!): MiniappManager
+  updateMiniappManager(documentId: ID!, status: PublicationStatus = PUBLISHED, data: MiniappManagerInput!): MiniappManager
+  deleteMiniappManager(documentId: ID!): DeleteMutationResponse
+  createPost(status: PublicationStatus = PUBLISHED, data: PostInput!): Post
+  updatePost(documentId: ID!, status: PublicationStatus = PUBLISHED, data: PostInput!): Post
+  deletePost(documentId: ID!): DeleteMutationResponse
+  createPotentialMember(status: PublicationStatus = PUBLISHED, data: PotentialMemberInput!): PotentialMember
+  updatePotentialMember(documentId: ID!, status: PublicationStatus = PUBLISHED, data: PotentialMemberInput!): PotentialMember
+  deletePotentialMember(documentId: ID!): DeleteMutationResponse
+  createSponsor(status: PublicationStatus = PUBLISHED, data: SponsorInput!): Sponsor
+  updateSponsor(documentId: ID!, status: PublicationStatus = PUBLISHED, data: SponsorInput!): Sponsor
+  deleteSponsor(documentId: ID!): DeleteMutationResponse
+  createTicketPricesManage(status: PublicationStatus = PUBLISHED, data: TicketPricesManageInput!): TicketPricesManage
+  updateTicketPricesManage(documentId: ID!, status: PublicationStatus = PUBLISHED, data: TicketPricesManageInput!): TicketPricesManage
+  deleteTicketPricesManage(documentId: ID!): DeleteMutationResponse
+  updateUploadFile(id: ID!, info: FileInfoInput): UploadFile!
+  deleteUploadFile(id: ID!): UploadFile
+
+  """Create a new role"""
+  createUsersPermissionsRole(data: UsersPermissionsRoleInput!): UsersPermissionsCreateRolePayload
+
+  """Update an existing role"""
+  updateUsersPermissionsRole(id: ID!, data: UsersPermissionsRoleInput!): UsersPermissionsUpdateRolePayload
+
+  """Delete an existing role"""
+  deleteUsersPermissionsRole(id: ID!): UsersPermissionsDeleteRolePayload
+
+  """Create a new user"""
+  createUsersPermissionsUser(data: UsersPermissionsUserInput!): UsersPermissionsUserEntityResponse!
+
+  """Update an existing user"""
+  updateUsersPermissionsUser(id: ID!, data: UsersPermissionsUserInput!): UsersPermissionsUserEntityResponse!
+
+  """Delete an existing user"""
+  deleteUsersPermissionsUser(id: ID!): UsersPermissionsUserEntityResponse!
+  login(input: UsersPermissionsLoginInput!): UsersPermissionsLoginPayload!
+
+  """Register a user"""
+  register(input: UsersPermissionsRegisterInput!): UsersPermissionsLoginPayload!
+
+  """Request a reset password token"""
+  forgotPassword(email: String!): UsersPermissionsPasswordPayload
+
+  """
+  Reset user password. Confirm with a code (resetToken from forgotPassword)
+  """
+  resetPassword(password: String!, passwordConfirmation: String!, code: String!): UsersPermissionsLoginPayload
+
+  """Change user password. Confirm with the current password."""
+  changePassword(currentPassword: String!, password: String!, passwordConfirmation: String!): UsersPermissionsLoginPayload
+
+  """Confirm an email users email address"""
+  emailConfirmation(confirmation: String!): UsersPermissionsLoginPayload
+}

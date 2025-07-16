@@ -1,0 +1,28 @@
+{
+  "app": {
+    "title": "YBA HCM",
+    "headerTitle": "zmp-blank-templates",
+    "headerColor": "#ffffff",
+    "textColor": "#333333",
+    "textAlign": "left",
+    "statusBarColor": "#1843EF",
+    "leftButton": "back",
+    "statusBarType": "normal",
+    "actionBarHidden": true,
+    "hideAndroidBottomNavigationBar": false,
+    "hideIOSSafeAreaBottom": false
+  },
+  "debug": false,
+  "pages": [],
+  "listCSS": [],
+  "listSyncJS": [],
+  "listAsyncJS": [],
+  "api": {
+    "development": {
+      "domain": "http://192.168.0.108:3038"
+    },
+    "production": {
+      "domain": "https://yba.tsx.vn"
+    }
+  }
+}
