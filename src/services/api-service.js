@@ -699,6 +699,7 @@ services.getEventTickets = (eventId) => {
         thoi_gian_bat_dau
         chi_danh_cho_hoi_vien
         so_luong_ve_phat_hanh
+        so_luong_ve_xuat
         loai_ve
         ve_nhom
         su_kien {
@@ -2955,7 +2956,7 @@ services.registerEvent = async (eventId, ticketId, registrationData, zaloIdByOA)
       const mainRegistration = response.data.createEventRegistration;
 
       // Handle child tickets for group registration
-      if (registrationData["Vé nhóm"] && registrationData["Vé con"]) {
+      if (registrationData["Vé con"]) {
         const childTickets = await createChildTickets(
           mainRegistration.documentId,
           registrationData["Vé con"],

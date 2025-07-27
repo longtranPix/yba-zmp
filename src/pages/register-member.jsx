@@ -439,7 +439,7 @@ const RegisterMemberPage = () => {
       return;
     }
 
-    const isComboTicket = ticket?.customFields?.["Vé combo"] === true;
+    const isComboTicket = ticket?.so_luong_ve_xuat > 1;
     const totalTickets = isComboTicket
       ? getTotalTicketsForCombo()
       : ticketCountt;
@@ -503,7 +503,8 @@ const RegisterMemberPage = () => {
     };
 
     // ✅ FIXED: Handle child tickets for group registration
-    if (isGroupTicket || selectType === 2) {
+    console.log("So luong ve xuat: ", ticket)
+    if (isGroupTicket || selectType === 2 || ticket.so_luong_ve_xuat > 1) {
       const exportQuantity = ticket?.so_luong_ve_xuat || 1;
 
       // ✅ FIXED: For group tickets, calculate child tickets correctly
@@ -534,6 +535,7 @@ const RegisterMemberPage = () => {
         }));
       } else if (childTicketsCount > 0) {
         // Default group tickets with same person info (for multiple ticket export)
+        console.log('Child ticket: ', childTicketsCount)
         requestBody["Vé con"] = Array(childTicketsCount).fill({
           "Tên": customInfo.fullname,
           "Số điện thoại": customInfo.guestTicket
@@ -549,10 +551,11 @@ const RegisterMemberPage = () => {
             "Giá vé": null, // ✅ FIXED: Set price for child tickets
             "Vé chính": false // ✅ FIXED: Set ve_chinh to false for child tickets
         });
+        console.log('ve con: ', requestBody["Vé con"])
       }
 
       // ✅ FIXED: Set total price for main ticket (includes all tickets in the group)
-      if (ticket?.gia && totalTicketsToRegister > 1) {
+      if (ticket?.gia && totalTicketsToRegister > 1 && isGroupTicket) {
         requestBody["Giá vé"] = ticket.gia * totalTicketsToRegister;
         console.log('Group ticket total price:', {
           unitPrice: ticket.gia,
@@ -904,7 +907,7 @@ const RegisterMemberPage = () => {
 
   const getTotalTicketsForCombo = () => {
     // Total tickets = purchase count * export quantity per purchase
-    const exportQuantity = ticket?.so_luong_ve_xuat || 1;
+    const exportQuantity = 1;
     return ticketCountt * exportQuantity;
   };
 
