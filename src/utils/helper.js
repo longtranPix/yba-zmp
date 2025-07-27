@@ -85,30 +85,85 @@ services.showAlertInfo = (message, delay) => {
   }
 };
 
+// ===== FIXED: Updated to match GraphQL schema enum values =====
 const sponsorRankPriority = {
-  "Đồng hành chiến lược": 6,
-  "Kim Cương": 5,
-  "Bạch Kim": 4,
-  Vàng: 3,
-  Bạc: 2,
-  Đồng: 1,
+  "Dong_hanh": 5,    // Đồng hành (highest priority)
+  "Bach_kim": 4,     // Bạch kim
+  "Vang": 3,         // Vàng
+  "Bac": 2,          // Bạc
+  "Dong": 1,         // Đồng (lowest priority)
 };
 
+// ===== FIXED: Updated to match GraphQL schema structure =====
 services.sortEventSponsers = (sponsors) => {
-  console.log('helper-services.sortEventSponsers');
-  if (!sponsors) return [];
+  console.log('helper-services.sortEventSponsers - Input sponsors:', sponsors);
 
-  return sponsors
+  if (!sponsors || !Array.isArray(sponsors)) {
+    console.log('helper-services.sortEventSponsers - No sponsors or invalid input');
+    return [];
+  }
+
+  const sortedAndFiltered = sponsors
+    .filter((sponsor) => {
+      // ===== FIXED: Filter sponsors with valid data =====
+      const hasLogo = sponsor?.logo?.url;
+      const hasCompanyName = sponsor?.ten_cong_ty;
+      const isValid = hasLogo && hasCompanyName;
+
+      if (!isValid) {
+        console.log('helper-services.sortEventSponsers - Filtered out sponsor:', {
+          id: sponsor?.documentId,
+          hasLogo,
+          hasCompanyName,
+          companyName: sponsor?.ten_cong_ty
+        });
+      }
+
+      return isValid;
+    })
     .sort((a, b) => {
-      const rankA = a?.customFields?.["Hạng"]?.[0] || "";
-      const rankB = b?.customFields?.["Hạng"]?.[0] || "";
+      // ===== FIXED: Use schema-compliant hang field =====
+      const rankA = a?.hang || "";
+      const rankB = b?.hang || "";
 
       const priorityA = sponsorRankPriority[rankA] || 0;
       const priorityB = sponsorRankPriority[rankB] || 0;
 
-      return priorityB - priorityA;
-    })
-    .filter((sponsor) => sponsor?.customFields?.["Logo"]?.[0]?.url);
+      console.log('helper-services.sortEventSponsers - Sorting:', {
+        sponsorA: { name: a?.ten_cong_ty, rank: rankA, priority: priorityA },
+        sponsorB: { name: b?.ten_cong_ty, rank: rankB, priority: priorityB }
+      });
+
+      // Sort by priority (higher priority first)
+      if (priorityA !== priorityB) {
+        return priorityB - priorityA;
+      }
+
+      // ===== NEW: Secondary sort by company name for consistent ordering =====
+      const nameA = a?.ten_cong_ty || "";
+      const nameB = b?.ten_cong_ty || "";
+      return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+    });
+
+  console.log('helper-services.sortEventSponsers - Final result:', sortedAndFiltered);
+  return sortedAndFiltered;
+};
+
+// ===== NEW: Helper function to get sponsor rank display name =====
+services.getSponsorRankDisplay = (rank) => {
+  const rankDisplayMap = {
+    'Dong_hanh': 'Đồng hành',
+    'Bach_kim': 'Bạch kim',
+    'Vang': 'Vàng',
+    'Bac': 'Bạc',
+    'Dong': 'Đồng'
+  };
+  return rankDisplayMap[rank] || rank;
+};
+
+// ===== NEW: Helper function to get sponsor rank priority =====
+services.getSponsorRankPriority = (rank) => {
+  return sponsorRankPriority[rank] || 0;
 };
 
 services.truncateText = (text, maxLength) => {

@@ -1,16 +1,64 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Icon, Page, useNavigate } from "zmp-ui"
 import { useRecoilValue } from "recoil"
 import Helper from "../utils/helper"
-import { listCategoriesState, listPostsState } from "../state"
+import { listPostsState } from "../state"
+import { getImageProps } from "../utils/imageHelper"
+import APIService from "../services/api-service"
 
 const PostPage = () => {
   const navigate = useNavigate()
   const posts = useRecoilValue(listPostsState)
-  const categories = useRecoilValue(listCategoriesState)
   const [searchTerm, setSearchTerm] = useState("")
-  const [activeCategory, setActiveCategory] = useState(1)
+  const [activeCategory, setActiveCategory] = useState("all") // Changed to string for better category handling
   const [visiblePosts, setVisiblePosts] = useState(4)
+  const [filteredPostsData, setFilteredPostsData] = useState([])
+  const [isLoadingCategory, setIsLoadingCategory] = useState(false)
+
+  // ===== FIXED: Define available post categories =====
+  const postCategories = [
+    { value: "all", label: "Tất cả", description: "Tất cả tin tức" },
+    { value: "Tin hội viên", label: "Tin hội viên", description: "Tin tức dành cho hội viên" },
+    { value: "Tin hoạt động hội", label: "Tin hoạt động hội", description: "Tin tức về các hoạt động của hội" },
+    { value: "Đào tạo pháp lý", label: "Đào tạo pháp lý", description: "Tin tức về đào tạo và pháp lý" },
+    { value: "Tin kinh tế", label: "Tin kinh tế", description: "Tin tức kinh tế và thị trường" }
+  ]
+
+  // ===== FIXED: Add useEffect to handle category filtering =====
+  useEffect(() => {
+    const loadPostsByCategory = async () => {
+      if (activeCategory === "all") {
+        // Use all posts from Recoil state
+        setFilteredPostsData(posts?.posts || [])
+        return
+      }
+
+      console.log('PostPage: Loading posts by category:', activeCategory)
+      setIsLoadingCategory(true)
+
+      try {
+        const result = await APIService.getPostsByCategory(activeCategory, 0, 50) // Load more posts for category
+
+        if (result.error === 0 && result.data) {
+          console.log('PostPage: Category posts loaded:', {
+            category: activeCategory,
+            count: result.data.length
+          })
+          setFilteredPostsData(result.data)
+        } else {
+          console.error('PostPage: Error loading category posts:', result.message)
+          setFilteredPostsData([])
+        }
+      } catch (error) {
+        console.error('PostPage: Error loading category posts:', error)
+        setFilteredPostsData([])
+      } finally {
+        setIsLoadingCategory(false)
+      }
+    }
+
+    loadPostsByCategory()
+  }, [activeCategory, posts])
 
   const handleSearch = (value) => {
     setSearchTerm(value)
@@ -21,6 +69,12 @@ const PostPage = () => {
     handleSearch(searchTerm)
   }
 
+  const handleCategoryChange = (categoryValue) => {
+    console.log('PostPage: Category changed to:', categoryValue)
+    setActiveCategory(categoryValue)
+    setVisiblePosts(4) // Reset visible posts when category changes
+  }
+
   const normalizeVietnameseText = (str) => {
     return str
       .normalize("NFD")
@@ -28,23 +82,20 @@ const PostPage = () => {
       .toLowerCase()
   }
 
-  const filteredPosts =
-    posts?.posts
-      ?.filter((post) => {
-        const normalizedSearch = normalizeVietnameseText(searchTerm)
-        // GraphQL field names: tieu_de, noi_dung
-        const title = post.tieu_de || ""
-        const content = post.noi_dung || ""
+  // ===== FIXED: Use filtered posts data with search functionality =====
+  const filteredPosts = filteredPostsData
+    ?.filter((post) => {
+      const normalizedSearch = normalizeVietnameseText(searchTerm)
+      // GraphQL field names: tieu_de, noi_dung
+      const title = post.tieu_de || ""
+      const content = post.noi_dung || ""
 
-        const matchesSearch =
-          normalizeVietnameseText(title).includes(normalizedSearch) ||
-          normalizeVietnameseText(content).includes(normalizedSearch)
+      const matchesSearch = !searchTerm ||
+        normalizeVietnameseText(title).includes(normalizedSearch) ||
+        normalizeVietnameseText(content).includes(normalizedSearch)
 
-        // For now, show all posts since category filtering needs to be implemented
-        const matchesCategory = activeCategory === 1
-
-        return matchesSearch && matchesCategory
-      })
+      return matchesSearch
+    })
       .sort((a, b) => {
         // GraphQL field names: ngay_dang, createdAt
         const dateA = new Date(a.ngay_dang || a.createdAt)
@@ -84,24 +135,20 @@ const PostPage = () => {
             />
           </div>
         </form>
+        {/* ===== FIXED: Updated category tabs to use postCategories ===== */}
         <div className="py-3 pl-4 overflow-x-auto no-scrollbar">
           <div className="flex space-x-2 min-w-max">
-            {categories &&
-              categories.map((category) => (
-                <div
-                  key={category.id}
-                  onClick={() =>
-                    setActiveCategory(
-                      activeCategory === category.id ? 1 : category.id
-                    )
-                  }
-                  className={` justify-center text-center flex items-center py-2 px-3 text-sm font-medium rounded-full border border-2 ${
-                    activeCategory === category.id
-                      ? "text-[#F40000] border-[#F40000] bg-white"
-                      : "text-[#999999] border-[#E5E5E5] bg-[#F4F4F4]"
-                  }`}
-                >
-                  {category.name}
+            {postCategories.map((category) => (
+              <div
+                key={category.value}
+                onClick={() => handleCategoryChange(category.value)}
+                className={`justify-center text-center flex items-center py-2 px-3 text-sm font-medium rounded-full border cursor-pointer ${
+                  activeCategory === category.value
+                    ? "text-[#F40000] border-[#F40000] bg-white"
+                    : "text-[#999999] border-[#E5E5E5] bg-[#F4F4F4]"
+                }`}
+              >
+                {category.label}
                 </div>
               ))}
           </div>
@@ -115,10 +162,7 @@ const PostPage = () => {
             >
               <img
                 className="block object-cover w-full h-48"
-                src={
-                  post.hinh_anh_minh_hoa?.url ||
-                  "https://api.ybahcm.vn/public/yba/yba-01.png"
-                }
+                {...getImageProps(post.hinh_anh_minh_hoa?.url)}
                 alt="Post Thumbnail"
               />
               <div className="grid gap-2 mx-4 my-3">

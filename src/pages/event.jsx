@@ -1,18 +1,32 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback, useMemo } from "react"
 import { Icon, Page, useNavigate } from "zmp-ui"
 import Tags from "../components/tags"
 import { useRecoilState, useRecoilValue } from "recoil"
 import Helper from "../utils/helper"
+import { getEventImageUrl, getImageProps, getEmptyStateIcon } from "../utils/imageHelper"
 import {
   listEventState,
   selectedChapterState,
   listChapterState,
   multipleEventTicketsState,
-  userByPhoneNumberState,
 } from "../state"
-import APIServices from "../services/api-service"
+import { useAuth } from "../contexts/AuthContext"
+import APIService from "../services/api-service"
 const EventPage = () => {
   const navigate = useNavigate()
+
+  // ===== FIXED: Use AuthContext instead of Recoil states and manual API calls =====
+  const {
+    userInfo,           // Zalo profile data
+    member,             // Member data
+    isMember,           // Member status from AuthContext
+    isAuthenticated,
+    isLoading: authLoading,
+    userType,
+    activateGuestAuthentication,
+    getAllZaloDataWithPermissions
+  } = useAuth()
+
   const events = useRecoilValue(listEventState)
   const eventIds = events.map((event) => event.documentId)
   const allEventTickets = useRecoilValue(multipleEventTicketsState(eventIds))
@@ -33,48 +47,184 @@ const EventPage = () => {
   const [selectedChapter, setSelectedChapter] =
     useRecoilState(selectedChapterState)
 
-  const changeTags = (index) => {
-    setSelectedChapter(index)
-  }
+  // ===== FIXED: State for client-side chapter filtering =====
+  const [filteredEvents, setFilteredEvents] = useState([])
+  const [isLoadingChapterEvents, setIsLoadingChapterEvents] = useState(false)
 
-  const [isMember, setIsMember] = useState(false)
-  const profile = useRecoilValue(userByPhoneNumberState)
+  // ===== FIXED: Optimize changeTags with useCallback to prevent re-renders =====
+  const changeTags = useCallback((index) => {
+    console.log('changeTags called with index:', index);
+    setSelectedChapter(index);
+  }, [setSelectedChapter]);
 
-  // Don't automatically check membership - always start as guest
-  // Only check membership when user takes explicit action (register/verify)
+  // ===== FIXED: Check authentication status and activate if needed =====
   // useEffect(() => {
-  //   const checkMembership = async () => {
-  //     const result = await APIServices.checkIsMember()
-  //     setIsMember(result)
-  //   }
-  //   checkMembership()
-  // }, [])
+  //   const checkAuthenticationAndActivate = async () => {
+  //     try {
+  //       console.log('EventPage: Checking authentication status for event filtering', {
+  //         isAuthenticated,
+  //         authLoading,
+  //         hasUserInfo: !!userInfo,
+  //         hasMember: !!member,
+  //         isMember,
+  //         userType
+  //       });
 
-  const getEventWithFilter = () => {
-    if (!chapters || chapters.length == 0) return events
-    console.log('getEventWithFilter', chapters.length);
+  //       // If still loading authentication, wait
+  //       if (authLoading) {
+  //         console.log('EventPage: Authentication still loading, waiting...');
+  //         return;
+  //       }
 
-    let filteredEvents = events.filter((event) => {
-      // GraphQL field: chi_danh_cho_hoi_vien
-      if (event.chi_danh_cho_hoi_vien && !isMember) {
-        return false
+  //       // ===== FIXED: If not authenticated, activate authentication =====
+  //       if (!isAuthenticated) {
+  //         console.log('EventPage: Not authenticated, activating guest authentication');
+  //         try {
+  //           await activateGuestAuthentication();
+  //           console.log('EventPage: Guest authentication activated successfully');
+  //         } catch (error) {
+  //           console.error('EventPage: Error activating guest authentication:', error);
+  //         }
+  //       }
+
+  //       // If authenticated but missing user info, try to get it
+  //       if (isAuthenticated && !userInfo?.id) {
+  //         console.log('EventPage: Authenticated but missing user info, getting user data');
+  //         try {
+  //           const result = await getAllZaloDataWithPermissions();
+  //           if (result.success) {
+  //             console.log('EventPage: User data retrieved successfully');
+  //           } else {
+  //             console.log('EventPage: Failed to get user data:', result.message);
+  //           }
+  //         } catch (error) {
+  //           console.error('EventPage: Error getting user data:', error);
+  //         }
+  //       }
+
+  //       console.log('EventPage: Final authentication status:', {
+  //         isAuthenticated,
+  //         isMember,
+  //         userType,
+  //         hasUserInfo: !!userInfo,
+  //         hasMember: !!member
+  //       });
+
+  //     } catch (error) {
+  //       console.error('EventPage: Error during authentication check:', error);
+  //     }
+  //   };
+
+  //   checkAuthenticationAndActivate();
+  // }, [isAuthenticated, authLoading, userInfo, member, isMember, userType, activateGuestAuthentication, getAllZaloDataWithPermissions]);
+
+  // ===== FIXED: Add debounce to prevent rapid API calls =====
+  useEffect(() => {
+    const loadEventsByChapter = async () => {
+      if (selectedChapter === 0) {
+        // Show all events when "Tất cả" is selected
+        console.log('EventPage: All chapters selected, showing all events');
+        setFilteredEvents(events || []);
+        return;
       }
 
-      // Private event filtering - will need to be implemented when relationship is available
-      // For now, show all events
+      if (!chapters || chapters.length === 0) {
+        console.log('EventPage: No chapters available');
+        setFilteredEvents([]);
+        return;
+      }
 
-      if (selectedChapter !== 0) {
-        let chapter = chapters[selectedChapter]
-        // Chapter filtering will need to be implemented when relationship is available
-        // For now, show all events
-        return true
+      // Get selected chapter name
+      const selectedChapterData = chapters[selectedChapter];
+      if (!selectedChapterData) {
+        console.log('EventPage: Invalid chapter selection');
+        setFilteredEvents([]);
+        return;
+      }
+
+      const chapterName = selectedChapterData.ten_chi_hoi;
+      console.log('EventPage: Loading events for chapter:', chapterName);
+      setIsLoadingChapterEvents(true);
+
+      try {
+        // ===== SIMPLE: Call API to get events filtered by chapter name =====
+        const result = await APIService.getEventsByChapter(chapterName, 0, 50);
+
+        if (result.error === 0 && result.data?.events) {
+          console.log('EventPage: Chapter events loaded:', {
+            chapter: chapterName,
+            count: result.data.events.length
+          });
+          setFilteredEvents(result.data.events);
+        } else {
+          console.error('EventPage: Error loading chapter events:', result.message);
+          setFilteredEvents([]);
+        }
+      } catch (error) {
+        console.error('EventPage: Error loading chapter events:', error);
+        setFilteredEvents([]);
+      } finally {
+        setIsLoadingChapterEvents(false);
+      }
+    };
+
+    // ===== FIXED: Add debounce to prevent rapid API calls =====
+    const timeoutId = setTimeout(() => {
+      loadEventsByChapter();
+    }, 200); // 200ms debounce
+
+    // Cleanup timeout on unmount or dependency change
+    return () => clearTimeout(timeoutId);
+  }, [selectedChapter, chapters, events]);
+
+  // ===== FIXED: Optimize with useMemo to prevent unnecessary re-calculations =====
+  const filteredEventsWithMemberCheck = useMemo(() => {
+    console.log('getEventWithFilter: Filtering events', {
+      totalEvents: events?.length || 0,
+      chapterFilteredEvents: filteredEvents?.length || 0,
+      isMember: isMember,
+      selectedChapter: selectedChapter,
+      isLoadingChapterEvents: isLoadingChapterEvents
+    });
+
+    // Use chapter-filtered events if available, otherwise use empty array
+    const eventsToFilter = filteredEvents.length > 0 ? filteredEvents : [];
+
+    const memberFilteredEvents = eventsToFilter.filter((event) => {
+      // Filter member-only events: chi_danh_cho_hoi_vien = true
+      if (event.chi_danh_cho_hoi_vien && !isMember) {
+        console.log('getEventWithFilter: Filtering out member-only event for guest user:', {
+          eventTitle: event.ten_su_kien || event.tieu_de,
+          eventId: event.documentId,
+          chi_danh_cho_hoi_vien: event.chi_danh_cho_hoi_vien,
+          isMember: isMember
+        });
+        return false; // Hide member-only events from guest users
+      }
+
+      // Log member-only events shown to verified members
+      if (event.chi_danh_cho_hoi_vien && isMember) {
+        console.log('getEventWithFilter: Showing member-only event to verified member:', {
+          eventTitle: event.ten_su_kien || event.tieu_de,
+          eventId: event.documentId,
+          chi_danh_cho_hoi_vien: event.chi_danh_cho_hoi_vien,
+          isMember: isMember
+        });
       }
 
       return true
     })
 
-    return filteredEvents
-  }
+    console.log('getEventWithFilter: Final filtered results', {
+      originalCount: events?.length || 0,
+      chapterFilteredCount: filteredEvents?.length || 0,
+      memberFilteredCount: memberFilteredEvents.length,
+      selectedChapter: selectedChapter,
+      isMember: isMember
+    });
+
+    return memberFilteredEvents
+  }, [filteredEvents, isMember, events, selectedChapter, isLoadingChapterEvents]);
 
   const getEventStatus = (event) => {
     // GraphQL field: trang_thai (ENUM_EVENTINFORMATION_TRANG_THAI)
@@ -118,8 +268,9 @@ const EventPage = () => {
         items={chapters}
         onClick={changeTags}
         active={selectedChapter}
+        isLoading={isLoadingChapterEvents}
       />
-      {getEventWithFilter().map((k, i) => {
+      {filteredEventsWithMemberCheck?.map((k, i) => {
         return (
           <div
             className="my relative mb-4 border rounded-lg shadow-sm"
@@ -130,15 +281,17 @@ const EventPage = () => {
           >
             <img
               className="block w-full rounded-t-lg"
-              src={
-                k.hinh_anh?.url ||
-                "https://api.ybahcm.vn/public/yba/yba-01.png"
-              }
-              onError={(e) => {
-                e.target.src = "https://api.ybahcm.vn/public/yba/yba-01.png";
-              }}
+              {...getImageProps(k.hinh_anh?.url)}
+              alt={k.ten_su_kien || "Event image"}
             />
             {getEventStatus(k)}
+            {/* Member-only event indicator */}
+            {k.chi_danh_cho_hoi_vien && (
+              <div className="absolute top-4 right-4 z-10 h-8 rounded-3xl bg-blue-600 px-3 flex items-center text-sm font-medium text-white">
+                <Icon icon="zi-user-circle" size={16} className="mr-1" />
+                Dành cho hội viên
+              </div>
+            )}
             <div className="p-3">
               <p className="font-bold">{k.ten_su_kien}</p>
               <p className="text-[13px] text-[#6F7071] pt-1 items-center flex">
@@ -172,12 +325,13 @@ const EventPage = () => {
           </div>
         )
       })}
-      {getEventWithFilter().length == 0 && (
-        <div className="flex items-center justify-center h-full -translate-y-8">
-          <div className="mx-auto text-center ">
+      {filteredEventsWithMemberCheck.length == 0 && (
+        <div className="flex h-3/4 items-center justify-center">
+          <div className="flex flex-col text-center items-center justify-center">
             <img
               className="w-24 h-auto block m-auto"
-              src="https://api.ybahcm.vn/public/yba/icon-empty.png"
+              src={getEmptyStateIcon()}
+              alt="No events"
             />
             <p className="text-normal text-[#6F7071] my-2">Chưa có sự kiện</p>
           </div>

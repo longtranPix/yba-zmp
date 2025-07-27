@@ -27,36 +27,68 @@ const TicketQRPage = () => {
 
   const shareTicket = async () => {
     try {
+      console.log("TicketQRPage: Sharing ticket with event data:", {
+        eventName: event?.ten_su_kien || event?.name,
+        ticketEventName: ticket?.eventName || ticket?.ten_su_kien,
+        hasEvent: !!event,
+        hasTicket: !!ticket
+      });
+
       await openShareSheet({
         type: "zmp_deep_link",
         data: {
           title: Helper.truncateText(
             `Vé điện tử sự kiện ${
-              event?.customFields["Sự kiện"] || event?.name
+              // ✅ FIXED: Use correct data structure from GraphQL response
+              event?.ten_su_kien ||
+              event?.name ||
+              ticket?.eventName ||
+              ticket?.ten_su_kien ||
+              "Sự kiện YBA"
             }`,
             100
           ),
           description:
             "Truy cập để xem thông tin chi tiết vé điện tử. Hội doanh nhân trẻ TP.HCM (YBA HCM)",
           thumbnail:
+            // ✅ FIXED: Use correct image structure from GraphQL response
+            event?.hinh_anh?.[0]?.url ||
             event?.customFields?.["Hình ảnh"]?.[0]?.url ||
+            ticket?.su_kien?.hinh_anh?.[0]?.url ||
             "https://api.ybahcm.vn/public/yba/yba-01.png",
           path: `tickets/qrcode/${id}`,
         },
       });
     } catch (error) {
-      console.log(error);
+      console.log("TicketQRPage: Error sharing ticket:", error);
     }
   };
 
   useEffect(() => {
     var load = async () => {
       setLoading(true);
-      let response = await APIService.getEventInfo(
-        ticket?.customFields?.["Sự kiện"]?.[0].id
-      );
-      if (response.data) {
-        setEvent(response.data);
+      console.log("TicketQRPage: Loading event info for ticket:", {
+        ticketId: ticket?.id,
+        eventId: ticket?.eventId,
+        suKienId: ticket?.su_kien?.documentId,
+        hasTicket: !!ticket
+      });
+
+      // ✅ FIXED: Use correct data structure from GraphQL response
+      // Try multiple possible event ID sources for compatibility
+      const eventId = ticket?.eventId || ticket?.su_kien?.documentId;
+
+      if (eventId) {
+        console.log("TicketQRPage: Fetching event info for ID:", eventId);
+        let response = await APIService.getEventInfo(eventId);
+        if (response.data) {
+          console.log("TicketQRPage: Event info loaded:", response.data);
+          setEvent(response.data);
+        } else {
+          console.log("TicketQRPage: No event data in response:", response);
+        }
+      } else {
+        console.log("TicketQRPage: No event ID found in ticket data:", ticket);
       }
       setLoading(false);
     };

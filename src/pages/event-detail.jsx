@@ -4,36 +4,70 @@ import {
   eventInfoState,
   configState,
   listTicketOfEventState,
-  userZaloProfileState,
   listTicketState,
-  userByPhoneNumberState,
   eventRefreshTrigger,
-  zaloProfileRefreshTrigger,
-  phoneNumberRefreshTrigger,
 } from "../state";
 import { useRecoilValue, useSetRecoilState } from "recoil";
 import { useParams } from "react-router-dom";
 import Helper from "../utils/helper";
 import APIService from "../services/api-service";
 import ZaloService from "../services/zalo-service";
+import { getEventImageUrl, getImageProps } from "../utils/imageHelper";
 import { openShareSheet } from "zmp-sdk/apis";
 import EventSponsors from "../components/event-sponsor";
 import IWarningIcon from "../components/icons/i-warning-icon";
 import CountdownTimer from "../components/CountdownTimer";
+import { useAuth } from "../contexts/AuthContext";
+import { useAuthGuard } from "../hooks/useAuthGuard";
 
 const EventDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams(); // This is now documentId from the URL
+
+  // ✅ OPTIMIZED: Use lazy authentication - only request permissions when needed
+  const {
+    isAuthenticated,
+    userInfo, // This is zaloProfile
+    member, // This is memberInfo
+    isMember,
+    userType,
+    activateGuestAuthentication,
+    isLoading: authLoading
+  } = useAuth();
+
+  const {
+    navigateWithAuth,
+    canAccessFeature
+  } = useAuthGuard();
+
+  // Add validation for event ID
+  if (!id) {
+    console.error('EventDetailPage: No event ID provided in URL params');
+    navigate('/');
+    return null;
+  }
+
   const event = useRecoilValue(eventInfoState(id)); // Use Recoil state with documentId
   const tickets = useRecoilValue(listTicketOfEventState(id));
   const listTicket = useRecoilValue(listTicketState);
-  const zaloProfile = useRecoilValue(userZaloProfileState);
 
-  // Safely filter tickets with null checks
-  const myTickets = (listTicket && Array.isArray(listTicket) && zaloProfile?.id)
-    ? listTicket
-        .filter((t) => t?.customFields?.["Zalo ID"] === zaloProfile.id)
-        .filter((t) => t?.customFields?.["Sự kiện"]?.[0]?.documentId === id)
+  // ===== FIXED: Use AuthContext member data for ticket filtering =====
+  const myTickets = (listTicket && Array.isArray(listTicket))
+    ? listTicket.filter((t) => {
+      // Check if ticket belongs to this event using GraphQL field names
+      const ticketEventId = t?.eventId || t?.su_kien?.documentId || t?.customFields?.["Sự kiện"]?.[0]?.documentId;
+
+      // Check if ticket belongs to current user
+      const ticketMemberId = t?.hoi_vien?.documentId;
+      const currentMemberId = member?.documentId;
+
+      // Match by event and user (either member ID or Zalo ID)
+      const belongsToEvent = ticketEventId === id;
+      const belongsToUser = ticketMemberId && ticketMemberId === currentMemberId;
+      console.log('check ticket: ', belongsToEvent, belongsToUser, member);
+
+      return belongsToEvent && belongsToUser;
+    })
     : [];
 
   // Early return if event is not loaded yet
@@ -42,7 +76,14 @@ const EventDetailPage = () => {
       <Page className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <Text>Đang tải thông tin sự kiện...</Text>
+          <p>Đang tải thông tin sự kiện...</p>
+          <p className="text-sm text-gray-500 mt-2">Event ID: {id}</p>
+          <button
+            onClick={() => navigate('/')}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            Quay về trang chủ
+          </button>
         </div>
       </Page>
     );
@@ -57,8 +98,81 @@ const EventDetailPage = () => {
   const configs = useRecoilValue(configState);
   const [ticketCounts, setTicketCounts] = useState({});
   const refreshEvent = useSetRecoilState(eventRefreshTrigger);
-  const refreshZaloProfile = useSetRecoilState(zaloProfileRefreshTrigger);
-  const refreshPhoneNumber = useSetRecoilState(phoneNumberRefreshTrigger);
+
+
+  // ===== NEW: useEffect to check authentication when accessing event detail =====
+  // useEffect(() => {
+  //   const checkAuthenticationForEventDetail = async () => {
+  //     console.log("EventDetail: Checking authentication for event detail access");
+
+  //     // Check if user is authenticated
+  //     try {
+  //       if (authLoading) {
+  //         console.log("EventDetail: Authentication still loading, waiting...");
+  //         return;
+  //       }
+
+  //       if (!isAuthenticated) {
+  //         console.log("EventDetail: User not authenticated, activating guest authentication");
+
+  //         // Use the AuthContext function to activate guest authentication
+  //         const result = await activateGuestAuthentication();
+
+  //         if (result.success) {
+  //           console.log("EventDetail: Guest authentication activated successfully:", {
+  //             userType: result.userType,
+  //             zaloId: result.zaloId
+  //           });
+  //         } else {
+  //           console.log("EventDetail: Failed to activate guest authentication:", result.error);
+  //           navigate(-1)
+  //         }
+  //       } else {
+  //         console.log("EventDetail: User already authenticated as:", userType);
+  //       }
+
+  //     } catch (error) {
+
+  //     }
+  //   }
+  //   checkAuthenticationForEventDetail();
+
+  //   // const initPage = async () => {
+  //   //   // Check authentication first when user clicks to event detail
+  //   //   await checkAuthenticationForEventDetail();
+
+  //   //   // Then refresh page data
+  //   //   refreshEvent((prev) => prev + 1);
+  //   //   // ===== FIXED: AuthContext automatically handles user info refresh =====
+  //   // };
+
+  //   // initPage();
+  // }, [id, isAuthenticated, userType, activateGuestAuthentication]);
+
+  // ===== FIXED: Remove Recoil refresh triggers, AuthContext handles this automatically =====
+
+  // Add effect to handle navigation back from register-member and ensure proper event loading
+  // useEffect(() => {
+  //   // Log for debugging
+  //   console.log('EventDetailPage: Event ID from params:', id);
+  //   console.log('EventDetailPage: Event loaded:', !!event);
+  //   console.log('EventDetailPage: Event documentId:', event?.documentId);
+
+  //   // If we have an ID but no event, the state might need refreshing
+  //   if (id && !event) {
+  //     console.log('EventDetailPage: Event not loaded, state may need refresh');
+  //     // Trigger a refresh of the event state
+  //     refreshEvent((prev) => prev + 1);
+  //   }
+
+  //   // Validate that the event ID matches the URL parameter
+  //   if (event && event.documentId !== id) {
+  //     console.warn('EventDetailPage: Event documentId mismatch with URL param', {
+  //       urlParam: id,
+  //       eventDocumentId: event.documentId
+  //     });
+  //   }
+  // }, [id, event, refreshEvent]);
 
   const isComboTicket = (ticket) => {
     return ticket?.ve_nhom === true;
@@ -153,6 +267,7 @@ const EventDetailPage = () => {
       let res = await APIService.getSponsorsOfEvents(event.documentId);
       if (res.data) {
         let sorted = Helper.sortEventSponsers(res.data.sponsors);
+        console.log('EventDetailPage: Sorted sponsors:', sorted);
         setSponsors(sorted);
       }
     };
@@ -173,17 +288,6 @@ const EventDetailPage = () => {
     setTicketCounts(initialCounts);
   }, [tickets]);
 
-  useEffect(() => {
-    const initPage = async () => {
-      // Gọi login khi vào trang chi tiết sự kiện
-      await APIService.login();
-      refreshEvent((prev) => prev + 1);
-      refreshZaloProfile((prev) => prev + 1);
-      refreshPhoneNumber((prev) => prev + 1);
-    };
-
-    initPage();
-  }, []);
 
   const goBack = () => {
     navigate(-1);
@@ -195,38 +299,86 @@ const EventDetailPage = () => {
     return false;
   };
 
-  const register = (ticket) => {
+  const register = async (ticket) => {
     console.log("register", ticket);
 
     if (totalSoldTickets >= maxEventTickets) {
       return;
     }
 
-    if (myTickets && myTickets.length > 0) {
-      setAlreadyBuyPopup(true);
-      return;
-    }
+    // ✅ REFACTORED: Check authentication BEFORE navigating to registration screen
+    try {
+      // For member-only tickets, require member authentication
+      const requireMember = ticket.chi_danh_cho_hoi_vien === true;
 
-    if (ticket.chi_danh_cho_hoi_vien === true) {
-      console.log("register/zaloProfile", zaloProfile);
-      if (
-        zaloProfile.info?.customFields["Trạng thái hội viên"]?.[0] ==
-        "Ngừng hoạt động" ||
-        zaloProfile.info?.customFields["Trạng thái"]?.[0] == "Khóa tài khoản"
-      ) {
-        setInActiveMember(true);
+      console.log('EventDetail: Checking authentication before navigation', {
+        requireMember,
+        ticketType: ticket.ten_hien_thi_ve
+      });
+
+      // Check if user can access registration with current auth status
+      const accessCheck = canAccessFeature({
+        requireAuth: true,
+        requireMember
+      });
+
+      // If already authenticated and authorized, navigate directly
+      if (accessCheck.canAccess) {
+        // Check member status if this is a member-only ticket and user is member
+        if (requireMember && member) {
+          const memberStatus = member.trang_thai_hoi_vien;
+          const accountStatus = member.trang_thai;
+
+          if (memberStatus === "Ngung_hoat_dong" || accountStatus === "Khoa_tai_khoan") {
+            setInActiveMember(true);
+            return;
+          }
+        }
+
+        // Navigate directly if already authenticated
+        const eventId = event?.documentId || id;
+        if (!eventId) {
+          console.error('EventDetailPage: No valid event ID for registration');
+          return;
+        }
+
+        console.log('EventDetail: Already authenticated, navigating to registration');
+        navigate(
+          `/members/register-member?eventId=${eventId}&ticketId=${ticket.documentId
+          }&ticketCount=${ticketCounts[ticket.documentId] || 1}`
+        );
         return;
       }
-      if (zaloProfile.isMember == false) {
-        setNonMemberPopup(true);
+
+      // Need authentication - use navigation guard
+      const eventId = event?.documentId || id;
+      if (!eventId) {
+        console.error('EventDetailPage: No valid event ID for registration');
         return;
       }
-    }
 
-    navigate(
-      `/members/register-member?eventId=${id}&ticketId=${ticket.documentId
-      }&ticketCount=${ticketCounts[ticket.documentId] || 1}`
-    );
+      const registrationPath = `/members/register-member?eventId=${eventId}&ticketId=${ticket.documentId}&ticketCount=${ticketCounts[ticket.documentId] || 1}`;
+
+      console.log('EventDetail: Requesting authentication before navigation');
+      const navigationSuccess = await navigateWithAuth(navigate, registrationPath, {
+        requireAuth: true,
+        requireMember,
+        requirePhone: false,
+        screenName: 'Event Registration'
+      });
+
+      if (!navigationSuccess) {
+        // Navigation was blocked due to authentication failure
+        // Error messages are already shown by the auth guard
+        if (requireMember) {
+          setNonMemberPopup(true);
+        }
+      }
+
+    } catch (error) {
+      console.error('EventDetail: Error during registration navigation:', error);
+      Helper.showAlert("Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.");
+    }
   };
 
   const viewMore = () => {
@@ -235,9 +387,9 @@ const EventDetailPage = () => {
   };
 
   const openContact = async () => {
-    let userInfo = await APIService.getAuthInfo();
+    // ===== NEW: Use AuthContext userInfo instead of APIService.getAuthInfo() =====
     await APIService.sendEventContact(
-      userInfo?.zaloIDByOA,
+      userInfo?.id, // Use Zalo ID from AuthContext
       event.documentId,
       event.ten_su_kien
     );
@@ -245,6 +397,34 @@ const EventDetailPage = () => {
     if (oaId > 0) {
       ZaloService.openOfficialAccount(oaId);
     }
+  };
+
+  // ===== FIXED: Format event description from markdown to HTML =====
+  const formatEventDescription = (content) => {
+    if (!content) return "";
+
+    // Convert markdown-style formatting to HTML
+    let formattedContent = content
+      // Convert **bold** to <strong>bold</strong>
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Convert # headers to <h3> tags
+      .replace(/^# (.*$)/gm, '<h3>$1</h3>')
+      // Convert ## headers to <h4> tags
+      .replace(/^## (.*$)/gm, '<h4>$1</h4>')
+      // Convert ### headers to <h5> tags
+      .replace(/^### (.*$)/gm, '<h5>$1</h5>')
+      // Convert line breaks to <br> tags
+      .replace(/\n/g, '<br>')
+      // Convert URLs to clickable links
+      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #1976d2; text-decoration: underline;">$1</a>')
+      // Convert bullet points (- item) to <ul><li> format
+      .replace(/^- (.*$)/gm, '<li>$1</li>')
+      // Wrap consecutive <li> items in <ul> tags
+      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+      // Clean up multiple consecutive <br> tags
+      .replace(/(<br>\s*){3,}/g, '<br><br>');
+
+    return formattedContent;
   };
 
   const handleClickDescription = (e) => {
@@ -268,7 +448,7 @@ const EventDetailPage = () => {
         event?.ten_su_kien || "",
         100
       );
-      const photoUrl = event.hinh_anh?.url || "https://api.ybahcm.vn/public/yba/yba-01.png";
+      const photoUrl = getImageProps(event.hinh_anh?.url).src || "https://api.ybahcm.vn/public/yba/yba-01.png";
       await openShareSheet({
         type: "zmp_deep_link",
         data: {
@@ -322,31 +502,28 @@ const EventDetailPage = () => {
     <Page className="bg-white page safe-page-content">
       <img
         className="block w-full rounded-lg"
-        src={
-          event.hinh_anh?.url ||
-          "https://api.ybahcm.vn/public/yba/yba-01.png"
-        }
-        onError={(e) => {
-          e.target.src = "https://api.ybahcm.vn/public/yba/yba-01.png";
-        }}
+        {...getImageProps(event?.hinh_anh?.url)}
+        alt={event?.ten_su_kien || "Event image"}
       />
       <div className="py-4">
         <p className="text-lg font-bold">{event?.ten_su_kien}</p>
         <div className="py-2 text-gray-700 text-normal">
           <div className="ql-snow">
             <div
-              className={`ql-editor ${!showFullDescription ? "max-h-32 overflow-hidden" : ""
+              className={`ql-editor event-description ${!showFullDescription ? "max-h-32 overflow-hidden" : ""
                 }`}
               dangerouslySetInnerHTML={{
-                __html:
-                  event?.customFields?.["Nội Dung Sự Kiện"]?.html ||
-                  event?.customFields?.["Nội Dung Sự Kiện"]?.text,
+                __html: formatEventDescription(event?.noi_dung_su_kien || "")
               }}
               onClick={handleClickDescription}
+              style={{
+                lineHeight: '1.6',
+                fontSize: '14px'
+              }}
             />
             {showViewButton && (
               <p
-                className="block w-full m-auto text-center text-blue-700"
+                className="block w-full m-auto text-center text-blue-700 cursor-pointer"
                 onClick={viewMore}
               >
                 {" "}
@@ -355,6 +532,48 @@ const EventDetailPage = () => {
             )}
           </div>
         </div>
+
+        {/* ===== FIXED: Add CSS styles for formatted content ===== */}
+        <style jsx>{`
+          .event-description h3 {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 12px 0 8px 0;
+            color: #333;
+          }
+          .event-description h4 {
+            font-size: 15px;
+            font-weight: bold;
+            margin: 10px 0 6px 0;
+            color: #333;
+          }
+          .event-description h5 {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 8px 0 4px 0;
+            color: #333;
+          }
+          .event-description ul {
+            margin: 8px 0;
+            padding-left: 20px;
+          }
+          .event-description li {
+            margin: 4px 0;
+            list-style-type: disc;
+          }
+          .event-description strong {
+            font-weight: bold;
+            color: #333;
+          }
+          .event-description a {
+            color: #1976d2;
+            text-decoration: underline;
+            word-break: break-all;
+          }
+          .event-description a:hover {
+            color: #1565c0;
+          }
+        `}</style>
         <div className="grid grid-cols-5 gap-4 px-3 py-3 my-2 text-sm border rounded-lg">
           <div className="text-[#6F7071] col-span-2">Ngày diễn ra</div>
           <div className="col-span-3 ">
@@ -362,10 +581,10 @@ const EventDetailPage = () => {
               event.thoi_gian_to_chuc
             )}
           </div>
-          <div className="text-[#6F7071] col-span-2">Người phụ trách</div>
+          {/* <div className="text-[#6F7071] col-span-2">Người phụ trách</div>
           <div className="col-span-3 font-bold">
             {event.nguoi_phu_trach || "Chưa cập nhật"}
-          </div>
+          </div> */}
           <div className="text-[#6F7071] col-span-2">Địa điểm tổ chức</div>
           <div className="col-span-3 ">{event.dia_diem}</div>
           <div className="text-[#6F7071] col-span-2">Chi hội</div>
@@ -375,9 +594,9 @@ const EventDetailPage = () => {
           <div className="text-[#6F7071] col-span-2">Trạng thái</div>
           <div className="col-span-3 ">
             {event.trang_thai === "Sap_dien_ra" ? "Sắp diễn ra" :
-             event.trang_thai === "Dang_dien_ra" ? "Đang diễn ra" :
-             event.trang_thai === "Huy" ? "Đã hủy" :
-             event.trang_thai === "Nhap" ? "Bản nháp" : event.trang_thai}
+              event.trang_thai === "Dang_dien_ra" ? "Đang diễn ra" :
+                event.trang_thai === "Huy" ? "Đã hủy" :
+                  event.trang_thai === "Nhap" ? "Bản nháp" : event.trang_thai}
           </div>
         </div>
         {tickets && tickets.length > 0 && (
@@ -468,9 +687,9 @@ const EventDetailPage = () => {
                             ticket.so_luong_ve_phat_hanh === 0
                           }
                           className={`${!isTicketAvailable ||
-                              ticket.so_luong_ve_phat_hanh === 0
-                              ? "!bg-gray-400"
-                              : "bg-[#0E3D8A]"
+                            ticket.so_luong_ve_phat_hanh === 0
+                            ? "!bg-gray-400"
+                            : "bg-[#0E3D8A]"
                             } text-white text-xs font-bold px-4 py-2 rounded-lg whitespace-nowrap`}
                         >
                           Liên hệ
@@ -486,20 +705,18 @@ const EventDetailPage = () => {
                                 ticketCounts[ticket.documentId] <= 0)) ||
                             totalSoldTickets >= maxEventTickets ||
                             (ticket.so_luong_ve_phat_hanh || 0) === 0 ||
-                            (ticket.chi_danh_cho_hoi_vien &&
-                              zaloProfile.isMember == false)
+                            (ticket.chi_danh_cho_hoi_vien && !isMember)
                           }
                           className={`${!isTicketAvailable ||
-                              ticket.so_luong_ve_phat_hanh === 0 ||
-                              (ticket.ve_nhom &&
-                                (!ticketCounts[ticket.documentId] ||
-                                  ticketCounts[ticket.documentId] <= 0)) ||
-                              totalSoldTickets >= maxEventTickets ||
-                              (ticket.so_luong_ve_phat_hanh || 0) === 0 ||
-                              (ticket.chi_danh_cho_hoi_vien &&
-                                zaloProfile.isMember == false)
-                              ? "!bg-gray-400"
-                              : "bg-[#0E3D8A]"
+                            ticket.so_luong_ve_phat_hanh === 0 ||
+                            (ticket.ve_nhom &&
+                              (!ticketCounts[ticket.documentId] ||
+                                ticketCounts[ticket.documentId] <= 0)) ||
+                            totalSoldTickets >= maxEventTickets ||
+                            (ticket.so_luong_ve_phat_hanh || 0) === 0 ||
+                            (ticket.chi_danh_cho_hoi_vien && !isMember)
+                            ? "!bg-gray-400"
+                            : "bg-[#0E3D8A]"
                             } text-white text-xs font-bold px-4 py-2 h-8 rounded-lg whitespace-nowrap`}
                         >
                           {getTicketButtonText(
@@ -627,7 +844,7 @@ const EventDetailPage = () => {
           </button>
         </Box>
       </Modal>
-      <Modal
+      {/* <Modal
         visible={alreadyBuyPopup}
         title=""
         onClose={() => {
@@ -659,7 +876,7 @@ const EventDetailPage = () => {
             Đóng
           </button>
         </Box>
-      </Modal>
+      </Modal> */}
     </Page>
   );
 };

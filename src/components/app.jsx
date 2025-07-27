@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import {
   App,
@@ -48,58 +48,46 @@ import TicketDetailLoading from "./skeletons/ticket-detail-loading";
 import MemberVerifyLoading from "./skeletons/member-verify-loading";
 import MembershipPage from "../pages/membership";
 import MembershipDetailPage from "../pages/membership-detail";
+import ChatbotDemoPage from "../pages/chatbot-demo";
 import logo from "../assets/logo.png";
-import { getSetting, authorize } from "zmp-sdk/apis";
-import APIService from "../services/api-service";
+import { authorize } from "zmp-sdk/apis";
+// APIService import removed - AuthContext handles authentication now
+import ChatbotWidget from "./ChatbotWidget";
+import { AuthProvider } from "../contexts/AuthContext";
 
 const HomePage = lazy(() => import("../pages/index"));
 
 const MyApp = () => {
   const [canGetInfo, setCanGetInfo] = useState(true);
 
-  const checkExistingPermissions = async () => {
-    console.log('========checkExistingPermissions========');
-    try {
-      const settingResponse = await getSetting();
-      if (
-        settingResponse?.authSetting?.["scope.userInfo"] &&
-        settingResponse?.authSetting?.["scope.userPhonenumber"]
-      ) {
-        setCanGetInfo(true);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error("Error checking existing permissions:", error);
-      return false;
-    }
-  };
+  // ===== REMOVED: Permission checking - AuthContext handles this =====
 
+  // ✅ REQUEST PERMISSIONS only when needed (for ticket registration or member verification)
   const requestPermissions = async () => {
-    console.log('========requestPermissions========');
+    console.log('App: Requesting Zalo permissions for user action');
     try {
       const authResult = await authorize({
         scopes: ["scope.userInfo", "scope.userPhonenumber"],
       });
       const hasPermissions =
         authResult?.["scope.userInfo"] && authResult?.["scope.userPhonenumber"];
+
+      console.log('App: Permission request result:', {
+        userInfo: authResult?.["scope.userInfo"],
+        phoneNumber: authResult?.["scope.userPhonenumber"],
+        bothGranted: hasPermissions
+      });
+
       setCanGetInfo(hasPermissions);
       return hasPermissions;
     } catch (error) {
-      console.error("Error requesting permissions:", error);
+      console.error("App: Error requesting permissions:", error);
       return false;
     }
   };
 
-  useEffect(() => {
-    const initApp = async () => {
-      await checkExistingPermissions();
-      // Gọi login ngay khi ứng dụng khởi động
-      await APIService.login();
-    };
-
-    initApp();
-  }, []);
+  // ===== REMOVED: App-level initialization - AuthContext handles everything =====
+  // AuthContext will handle all permission checking and user detection automatically
 
   const handleAllowAccess = () => {
     requestPermissions();
@@ -107,7 +95,8 @@ const MyApp = () => {
 
   return (
     <RecoilRoot>
-      <App>
+      <AuthProvider>
+        <App>
         <Suspense>
           <SnackbarProvider>
             <ZMPRouter>
@@ -289,6 +278,14 @@ const MyApp = () => {
                       element={<AboutPage></AboutPage>}
                     ></Route>
                     <Route
+                      path="/chatbot-demo"
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <ChatbotDemoPage />
+                        </Suspense>
+                      }
+                    ></Route>
+                    <Route
                       path="/payment"
                       element={<PaymentPage></PaymentPage>}
                     ></Route>
@@ -319,6 +316,9 @@ const MyApp = () => {
                       },
                     }}
                   />
+
+                  {/* ✅ GLOBAL CHATBOT WIDGET - Shows on all screens */}
+                  <ChatbotWidget />
                 </div>
               ) : (
                 <div className="absolute inset-0 flex items-center z-[100] px-4 bg-[#0E3D8A]">
@@ -332,7 +332,7 @@ const MyApp = () => {
                     <p className="font-normal text-[14px] leading-[17px] pb-4">
                       Tên, hình ảnh hồ sơ Zalo để xác định và truy cập các tính
                       năng của Zalo (bắt buộc)
-                      <br /> <br /> Số điện thoại để xác thực hội viên 
+                      <br /> <br /> Số điện thoại để xác thực hội viên
                     </p>
                     <button
                       onClick={handleAllowAccess}
@@ -341,12 +341,16 @@ const MyApp = () => {
                       Đã hiểu
                     </button>
                   </div>
+
+                  {/* ✅ GLOBAL CHATBOT WIDGET - Shows even on permission screen */}
+                  <ChatbotWidget />
                 </div>
               )}
             </ZMPRouter>
           </SnackbarProvider>
         </Suspense>
-      </App>
+        </App>
+      </AuthProvider>
     </RecoilRoot>
   );
 };

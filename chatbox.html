@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YBA Chatbot Widget</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: #f0f2f5;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      /* Demo content */
+      .demo-content {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: center;
+      }
+
+      .demo-content h1 {
+        color: #2d3748;
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+      }
+
+      .demo-content p {
+        color: #718096;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+
+      /* Chatbot Widget Styles */
+      .chatbot-widget {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+      }
+
+      /* Chat Bubble Button */
+      .chat-bubble {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        border: none;
+        position: relative;
+        /* overflow: hidden; */
+      }
+
+      .chat-bubble:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+      }
+
+      .chat-bubble::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          45deg,
+          transparent 30%,
+          rgba(255, 255, 255, 0.2) 50%,
+          transparent 70%
+        );
+        transform: translateX(-100%);
+        transition: transform 0.6s;
+      }
+
+      .chat-bubble:hover::before {
+        transform: translateX(100%);
+      }
+
+      .chat-bubble-icon {
+        font-size: 24px;
+        color: white;
+        transition: transform 0.3s ease;
+      }
+
+      .chat-bubble.active .chat-bubble-icon {
+        transform: rotate(180deg);
+      }
+
+      /* Notification Badge */
+      .notification-badge {
+        position: absolute;
+        top: -2px;
+        right: 0;
+        width: 20px;
+        height: 20px;
+        background: #ff6b6b;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        color: white;
+        animation: pulse-badge 2s infinite;
+      }
+
+      @keyframes pulse-badge {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.2);
+        }
+      }
+
+      /* Chat Window */
+      .chat-window {
+        position: absolute;
+        bottom: 80px;
+        right: 0;
+        width: 350px;
+        height: 500px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        transform: scale(0.8) translateY(20px);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
+
+      .chat-window.active {
+        display: flex;
+        transform: scale(1) translateY(0);
+        opacity: 1;
+      }
+
+      /* Chat Header */
+      .chat-header {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 15px 20px;
+        flex-shrink: 0;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .chat-header img {
+        height: 32px;
+        width: auto;
+        margin-bottom: 8px;
+      }
+
+      .chat-header h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+
+      .chat-header p {
+        font-size: 12px;
+        opacity: 0.9;
+      }
+
+      .close-button {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        transition: background 0.3s ease;
+      }
+
+      .close-button:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      /* Welcome Screen */
+      .welcome-screen {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 20px;
+        text-align: center;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      }
+
+      .welcome-screen.hidden {
+        display: none;
+      }
+
+      .bot-avatar {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-image: url("https://ybahcm.vn/wp-content/uploads/2025/03/Logo-YBA-2-5001555.png");
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        border-radius: 50%;
+        margin-bottom: 15px;
+        animation: gentle-pulse 2s infinite;
+      }
+
+      @keyframes gentle-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      .welcome-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 8px;
+      }
+
+      .welcome-subtitle {
+        font-size: 13px;
+        color: #718096;
+        margin-bottom: 20px;
+        line-height: 1.4;
+      }
+
+      .get-started-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .get-started-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+      }
+
+      /* Chat Content */
+      .chat-content {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .chat-content.active {
+        display: flex;
+      }
+
+      .chat-messages {
+        flex: 1;
+        padding: 15px;
+        padding-bottom: 0;
+        overflow-y: auto;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      }
+
+      .message {
+        margin-bottom: 15px;
+        animation: fadeInUp 0.4s ease;
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(15px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .message.bot {
+        display: flex;
+        align-items: flex-start;
+      }
+
+      .message.user {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-end;
+      }
+
+      .message-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 8px;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+
+      .message.bot .message-avatar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-image: url("https://ybahcm.vn/wp-content/uploads/2025/03/Logo-YBA-2-5001555.png");
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+
+      .message.user .message-avatar {
+        background: linear-gradient(135deg, #f6e05e 0%, #f4d03f 100%);
+        color: white;
+      }
+
+      .message-content {
+        max-width: 75%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        font-size: 13px;
+        line-height: 1.4;
+        position: relative;
+        overflow-wrap: break-word;
+      }
+
+      .message-content img {
+        width: 90%;
+      }
+      .message.bot .message-content {
+        background: white;
+        color: #2d3748;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .message.user .message-content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 4px;
+      }
+
+      .message-content ul {
+        margin: 8px 0;
+        padding-left: 16px;
+      }
+
+      .message-content li {
+        margin: 4px 0;
+      }
+
+      .message-content strong {
+        font-weight: 600;
+      }
+
+      /* Input Area */
+      .chat-input-container {
+        padding: 15px;
+        background: white;
+        border-top: 1px solid #e2e8f0;
+        flex-shrink: 0;
+      }
+
+      .chat-input-wrapper {
+        display: flex;
+        align-items: center;
+        background: #f7fafc;
+        border-radius: 20px;
+        padding: 8px 15px;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+      }
+
+      .chat-input-wrapper:focus-within {
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .chat-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: 14px;
+        padding: 8px;
+        color: #2d3748;
+      }
+
+      .chat-input::placeholder {
+        color: #a0aec0;
+      }
+
+      .send-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 8px;
+        font-size: 14px;
+      }
+
+      .send-button:hover {
+        transform: rotate(15deg) scale(1.1);
+      }
+
+      .send-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Typing Indicator */
+      .typing-indicator {
+        display: none;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .typing-indicator.active {
+        display: flex;
+      }
+
+      .typing-dots {
+        display: flex;
+        align-items: center;
+        background: white;
+        padding: 12px 16px;
+        border-radius: 18px;
+        border-bottom-left-radius: 4px;
+        margin-left: 40px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .typing-dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #cbd5e0;
+        margin: 0 2px;
+        animation: typing 1.4s infinite;
+      }
+
+      .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+          background: #cbd5e0;
+        }
+        30% {
+          transform: translateY(-6px);
+          background: #667eea;
+        }
+      }
+
+      /* Mobile Responsive */
+      @media (max-width: 768px) {
+        .chat-window {
+          width: 300px;
+          height: 450px;
+          bottom: 70px;
+          right: 10px;
+        }
+
+        .chatbot-widget {
+          bottom: 15px;
+          right: 15px;
+        }
+
+        .chat-bubble {
+          width: 55px;
+          height: 55px;
+        }
+
+        .chat-bubble-icon {
+          font-size: 22px;
+        }
+
+        .message-content {
+          max-width: 80%;
+          font-size: 12px;
+        }
+
+        .chat-header img {
+          height: 28px;
+        }
+
+        .chat-header h3 {
+          font-size: 16px;
+        }
+
+        .chat-header p {
+          font-size: 11px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .chat-window {
+          width: calc(100vw - 50px);
+          height: 70vh;
+          bottom: 70px;
+          right: 10px;
+          /* left: 10px; */
+        }
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  </head>
+  <body>
+    <!-- Demo Content -->
+    <div class="demo-content">
+      <h1>YBA - Hội Doanh nhân Trẻ TP.HCM</h1>
+      <p>
+        Chào mừng bạn đến với trang web của chúng tôi. Đây là nội dung demo để
+        thể hiện chatbot widget.
+      </p>
+      <p>
+        Chatbot YBA Assistant sẽ xuất hiện ở góc dưới bên phải màn hình. Click
+        vào để bắt đầu trò chuyện!
+      </p>
+      <p>
+        Widget này có thể dễ dàng tích hợp vào bất kỳ trang web nào của bạn.
+      </p>
+    </div>
+
+    <!-- Chatbot Widget -->
+    <div class="chatbot-widget">
+      <div class="chat-window" id="chatWindow">
+        <!-- Chat Header -->
+        <div class="chat-header">
+          <button class="close-button" onclick="toggleChat()">×</button>
+          <img
+            src="https://ybahcm.vn/wp-content/uploads/2025/03/Logo-YBA-2-5001555.png"
+            alt="YBA Logo"
+          />
+          <h3>YBA Assistant</h3>
+          <p>Trợ lý ảo Hội Doanh nhân Trẻ TP.HCM</p>
+        </div>
+
+        <!-- Welcome Screen -->
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="bot-avatar"></div>
+          <h4 class="welcome-title">Chào mừng!</h4>
+          <p class="welcome-subtitle">
+            Tôi là YBA Assistant - trợ lý ảo của bạn.<br />
+            Hãy bắt đầu trò chuyện nhé!
+          </p>
+          <button class="get-started-btn" onclick="startChat()">
+            Bắt đầu trò chuyện
+          </button>
+        </div>
+
+        <!-- Chat Content -->
+        <div class="chat-content" id="chatContent">
+          <div class="chat-messages" id="chatMessages">
+            <div class="typing-indicator" id="typingIndicator">
+              <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+              <input
+                type="text"
+                class="chat-input"
+                id="chatInput"
+                placeholder="Nhập câu hỏi..."
+                onkeypress="handleKeyPress(event)"
+              />
+              <button
+                class="send-button"
+                onclick="sendMessage()"
+                id="sendButton"
+              >
+                ➤
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Bubble Button -->
+      <button class="chat-bubble" onclick="toggleChat()" id="chatBubble">
+        <!-- <div class="notification-badge">1</div> -->
+        <div class="chat-bubble-icon">💬</div>
+      </button>
+    </div>
+
+    <script>
+      const config = {
+        webhookUrl:
+          "https://gochat.a.bsmart.city/webhook/9d6eec39-dd81-4003-aefd-f1c8ffdd4733/chat",
+        initialMessages: [
+          `**Xin chào! Mình là trợ lý ảo YBA – người bạn đồng hành trực tuyến của bạn tại Hội Doanh nhân Trẻ TP.HCM. Mình có thể hỗ trợ bạn các thông tin sau:**
+
+- Giới thiệu về lịch sử, sứ mệnh, tầm nhìn, mục tiêu, giá trị cốt lõi và phương hướng hoạt động của Hội
+- Một số thông tin chung về hội như thông tin liên hệ, tên gọi, trụ sở, …
+- Thông tin về ban lãnh đạo và cơ cấu tổ chức YBA Nhiệm kì 12
+- Hướng dẫn đăng ký hội viên, thông tin về tiêu chí, hội phí, quyền lợi hội viên
+- Thông tin về các chi hội, câu lạc bộ
+- Các hoạt động, sự kiện và chương trình tiêu biểu trong năm của YBA
+- Thông tin về các điều lệ của hội
+
+          `,
+        ],
+      };
+      let sessionId = localStorage.getItem("yba_session_id");
+      if (!sessionId) {
+        sessionId = crypto.randomUUID();
+        localStorage.setItem("yba_session_id", sessionId);
+      }
+      let isOpen = false;
+      let isFirstMessage = true;
+
+      function toggleChat() {
+        const chatWindow = document.getElementById("chatWindow");
+        const chatBubble = document.getElementById("chatBubble");
+        const badge = document.querySelector(".notification-badge");
+
+        isOpen = !isOpen;
+
+        if (isOpen) {
+          chatWindow.classList.add("active");
+          chatBubble.classList.add("active");
+          if (badge) badge.style.display = "none";
+
+          // Auto focus input when opened
+          setTimeout(() => {
+            document.getElementById("chatInput").focus();
+          }, 300);
+        } else {
+          chatWindow.classList.remove("active");
+          chatBubble.classList.remove("active");
+        }
+      }
+
+      function startChat() {
+        document.getElementById("welcomeScreen").classList.add("hidden");
+        document.getElementById("chatContent").classList.add("active");
+        document.getElementById("chatInput").focus();
+
+        // Show welcome message
+        setTimeout(() => {
+          showBotMessage(config.initialMessages[0]);
+        }, 500);
+      }
+
+      function handleKeyPress(event) {
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+      }
+
+      async function sendMessage() {
+        const input = document.getElementById("chatInput");
+        const sendButton = document.getElementById("sendButton");
+        const message = input.value.trim();
+
+        if (!message) return;
+
+        // Vô hiệu hóa input và nút gửi trong khi đợi API
+        input.disabled = true;
+        sendButton.disabled = true;
+
+        // Hiển thị tin nhắn của user
+        showUserMessage(message);
+        input.value = "";
+
+        // Hiển thị typing indicator ngay lập tức
+        showTypingIndicator();
+
+        // Gửi tin nhắn đến webhook
+        await sendToWebhook(message);
+
+        // Kích hoạt lại input và nút gửi sau khi nhận phản hồi
+        input.disabled = false;
+        sendButton.disabled = false;
+        input.focus();
+      }
+
+      function showUserMessage(message) {
+        const messagesContainer = document.getElementById("chatMessages");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "message user";
+
+        messageDiv.innerHTML = `
+                <div class="message-content">${escapeHtml(message)}</div>
+                <div class="message-avatar">🧑‍💼</div>            
+        `;
+
+        messagesContainer.appendChild(messageDiv);
+        scrollToBottom();
+      }
+
+      function showBotMessage(message) {
+        const messagesContainer = document.getElementById("chatMessages");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "message bot";
+
+        // const formattedMessage = formatMessage(message);
+        const formattedMessage = marked.parse(message); // dùng thư viện
+
+        messageDiv.innerHTML = `
+                <div class="message-avatar"></div>
+                <div class="message-content">${formattedMessage}</div>
+            `;
+
+        messagesContainer.appendChild(messageDiv);
+        hideTypingIndicator();
+        scrollToBottom();
+      }
+
+      function formatMessage(message) {
+        // Handle bold text
+        message = message.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+        // Markdown-style links: [label](url)
+        message = message.replace(
+          /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
+          (match, text, url) => {
+            // Nếu link chứa redirect (google.com/url?q=...), lấy link thật từ `q=`
+            const realUrl = url.includes("google.com/url?q=")
+              ? decodeURIComponent(new URL(url).searchParams.get("q"))
+              : url;
+
+            return `<a href="${realUrl}" target="_blank">${text}</a>`;
+          }
+        );
+
+        // Handle bullet points
+        message = message.replace(/^• (.+)$/gm, "<li>$1</li>");
+
+        // Wrap lists in ul tags
+        if (message.includes("<li>")) {
+          message = message.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
+        }
+
+        // Handle line breaks
+        message = message.replace(/\n/g, "<br>");
+
+        return message;
+      }
+
+      function showTypingIndicator() {
+        const messagesContainer = document.getElementById("chatMessages");
+        const typingIndicator = document.getElementById("typingIndicator");
+
+        // Di chuyển typingIndicator đến cuối chatMessages
+        messagesContainer.appendChild(typingIndicator);
+
+        // Hiển thị typing indicator
+        typingIndicator.classList.add("active");
+        scrollToBottom();
+      }
+
+      function hideTypingIndicator() {
+        document.getElementById("typingIndicator").classList.remove("active");
+      }
+
+      async function sendToWebhook(message) {
+        try {
+          const response = await fetch(config.webhookUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "sendMessage",
+              sessionId: sessionId,
+              chatInput: message,
+              timestamp: new Date().toISOString(),
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // Hiển thị phản hồi từ bot
+            showBotMessage(
+              data.output ||
+                "Cảm ơn bạn đã liên hệ! Tôi đang xử lý thông tin và sẽ phản hồi sớm nhất có thể."
+            );
+          } else {
+            throw new Error("Network response was not ok");
+          }
+        } catch (error) {
+          console.error("Error sending message:", error);
+          showBotMessage(
+            "Xin lỗi, có lỗi xảy ra khi kết nối. Vui lòng thử lại sau hoặc liên hệ trực tiếp với chúng tôi qua số hotline."
+          );
+        }
+      }
+
+      function scrollToBottom() {
+        const messagesContainer = document.getElementById("chatMessages");
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // Initialize
+      document.addEventListener("DOMContentLoaded", function () {
+        // Show notification badge initially
+        setTimeout(() => {
+          const badge = document.querySelector(".notification-badge");
+          if (badge) {
+            badge.style.display = "flex";
+          }
+        }, 2000);
+      });
+    </script>
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"96121843fe168065","version":"2025.7.0","r":1,"token":"3ab00767b3de42adba1f44ed225819df","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}}}' crossorigin="anonymous"></script>
+</body>
+</html>
+

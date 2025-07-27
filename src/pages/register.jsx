@@ -4,17 +4,19 @@ import { useRecoilValue, useSetRecoilState } from "recoil";
 import {
   refreshTrigger,
   userByPhoneNumberState,
-  userZaloProfileState,
+  // ✅ REMOVED: userZaloProfileState - using userInfo from useAuth()
 } from "../state";
 import APIServices from "../services/api-service";
 import FaceIcon from "../components/icons/face-icon";
+import { useAuth } from "../contexts/AuthContext";
 import RegisterSuccess from "../assets/register-success.png";
 import { useNavigate } from "react-router-dom";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const profile = useRecoilValue(userByPhoneNumberState);
-  const zaloProfile = useRecoilValue(userZaloProfileState);
+  // const profile = useRecoilValue(userByPhoneNumberState);
+  // ✅ REFACTORED: Use userInfo from useAuth() instead of zaloProfile
+  const { userInfo } = useAuth();
   const [isMember, setIsMember] = useState(false);
   const [hasReferral, setHasReferral] = useState(false);
   const refresh = useSetRecoilState(refreshTrigger);
@@ -68,7 +70,7 @@ const RegisterPage = () => {
     };
 
     initializeProfile();
-  }, [isMember, profile]);
+  }, [isMember]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -196,7 +198,7 @@ const RegisterPage = () => {
       date_of_birth: currentProfile.dateOfBirth ? formatDate(currentProfile.dateOfBirth) : null,
 
       // Zalo information
-      zalo: zaloProfile?.id || "",
+      zalo: userInfo?.id || "",
 
       // Member type and status
       member_type: "Hội viên chính thức",
@@ -219,17 +221,50 @@ const RegisterPage = () => {
     }
 
     console.log('register.jsx/potentialProfile', currentProfile?.id);
-    const res = await APIServices.registerMember(requestBody);
-    console.log('register.jsx/res', res);
 
-    if (res.error === 0) {
-      refresh((prev) => prev + 1);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setIsSuccess(true);
-      await APIServices.login();
-    } else {
-      setPopupVerifyError(true);
+    // ===== NEW: Create PotentialMember record first =====
+    try {
+      console.log('register.jsx: Creating PotentialMember record');
+
+      const potentialMemberData = {
+        ma_code: `PM_${Date.now()}`, // Generate unique code
+        ho_ten_day_du: currentProfile.fullname,
+        email: currentProfile.email.toLowerCase(),
+        so_dien_thoai: currentProfile.phoneNumber,
+        ghi_chu: `Đăng ký từ app - Công ty: ${currentProfile.company || 'N/A'}, Vị trí: ${currentProfile.position || 'N/A'}${currentProfile.referral ? `, Người giới thiệu: ${currentProfile.referral}` : ''}`,
+        nguoi_phu_trach: "", // Can be set by admin later
+        tuy_chon: "Gia_Nhap_Hoi", // Default option for joining
+        ngay_dang_ky: new Date().toISOString()
+      };
+
+      const potentialMemberResult = await APIServices.createPotentialMember(potentialMemberData);
+      console.log('register.jsx: PotentialMember creation result:', potentialMemberResult);
+
+      if (potentialMemberResult.error === 0) {
+        setIsSuccess(true);
+        
+        console.log('register.jsx: PotentialMember created successfully:', potentialMemberResult.data.documentId);
+      } else {
+        setPopupVerifyError(true);
+        console.warn('register.jsx: Failed to create PotentialMember, continuing with member registration:', potentialMemberResult.message);
+      }
+    } catch (error) {
+      console.error('register.jsx: Error creating PotentialMember:', error);
+      // Continue with member registration even if PotentialMember creation fails
     }
+
+    // ===== EXISTING: Continue with member registration =====
+    // const res = await APIServices.registerMember(requestBody);
+    // console.log('register.jsx/res', res);
+
+    // if (res.error === 0) {
+    //   refresh((prev) => prev + 1);
+    //   await new Promise((resolve) => setTimeout(resolve, 1000));
+    //   setIsSuccess(true);
+    //   await APIServices.login();
+    // } else {
+    //   setPopupVerifyError(true);
+    // }
     setIsProcessing(false);
   };
 

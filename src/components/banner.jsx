@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import { getImageProps, getBannerImageUrl } from "../utils/imageHelper";
 
 const Banner = ({ items, onClick }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
@@ -30,8 +31,14 @@ const Banner = ({ items, onClick }) => {
               >
                 <img
                   className="slide-img rounded-xl"
-                  src={v.image || v}
-                  alt="slide-1"
+                  {...getImageProps(
+                    v.image || v.url || v,
+                    null,
+                    {
+                      alt: `Banner slide ${index + 1}`,
+                      className: "slide-img rounded-xl"
+                    }
+                  )}
                 />
               </div>
             ))}

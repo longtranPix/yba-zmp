@@ -1,185 +1,237 @@
 import React, { useEffect, useState } from "react";
 import { Page, useNavigate, DatePicker } from "zmp-ui";
-import {
-  configState,
-  memberListRefreshTrigger,
-  userByPhoneNumberState,
-  userProfileState,
-  userZaloProfileState,
-} from "../state";
-import {
-  useRecoilValue,
-  useRecoilRefresher_UNSTABLE,
-  useSetRecoilState,
-} from "recoil";
 import APIServices from "../services/api-service";
+import { getImageProps } from "../utils/imageHelper";
 import Helper from "../utils/helper";
+import { useAuth } from "../contexts/AuthContext";
 
 const MemberInfoPage = () => {
-  const zaloProfile = useRecoilValue(userZaloProfileState);
+  // ✅ REFACTORED: Use only AuthContext and direct API calls
+  const { member, userInfo, isMember } = useAuth();
   const navigate = useNavigate();
-  const profile = useRecoilValue(userByPhoneNumberState);
-  const refreshMembers = useSetRecoilState(memberListRefreshTrigger);
-  const [isMember, setIsMember] = useState(false);
 
-  // Check if user is a member based on auth info and profile data
+  // ✅ REMOVED: All Recoil state dependencies
+  const [currentProfile, setCurrentProfile] = useState({
+    id: "",
+    name: "",
+    fullname: "",
+    lastName: "",
+    firstName: "",
+    gender: "",
+    phoneNumber: "",
+    email: "",
+    company: "",
+    position: "",
+    dateOfBirth: "",
+    memberType: "",
+    status: "",
+    joinDate: "",
+    chapter: null,
+    memberImage: null,
+    accounts: [],
+    membershipFees: [],
+    executiveRoles: [],
+    eventsAttended: "",
+    numberOfPosts: ""
+  });
+  // ✅ REMOVED: All Recoil state refreshers
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isChange, setIsChange] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // ✅ REFACTORED: Load member information directly from API using member ID from useAuth
   useEffect(() => {
-    const checkMemberStatus = async () => {
-      try {
-        const authInfo = await APIServices.getAuthInfo();
-        console.log('MemberInfoPage: Checking member status, authInfo:', authInfo);
+    const loadMemberInfo = async () => {
+      if (!member?.documentId) {
+        console.log('MemberInfoPage: No member ID available, showing guest profile');
+        setIsLoading(false);
+        return;
+      }
 
-        // User is a member if they have member data or member ID in auth info
-        const isUserMember = (authInfo?.isMember && (authInfo?.memberData || authInfo?.memberId)) || profile !== null;
-        console.log('MemberInfoPage: Setting isMember to:', isUserMember);
-        setIsMember(isUserMember);
+      try {
+        setIsLoading(true);
+        console.log('MemberInfoPage: Loading member information for ID:', member.documentId);
+
+        // Direct API call to get member information
+        const freshMemberData = await APIServices.getMember(member.documentId);
+
+        if (freshMemberData) {
+          console.log('MemberInfoPage: Member information loaded successfully');
+          // Process the fresh member data
+          processAuthContextMemberData(freshMemberData);
+        } else {
+          console.log('MemberInfoPage: No member information found');
+          // Use existing member data from AuthContext as fallback
+          if (member) {
+            processAuthContextMemberData(member);
+          }
+        }
       } catch (error) {
-        console.error('Error checking member status:', error);
-        setIsMember(false);
+        console.error('MemberInfoPage: Error loading member information:', error);
+        // Use existing member data from AuthContext as fallback
+        if (member) {
+          processAuthContextMemberData(member);
+        }
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    checkMemberStatus();
-  }, [profile]); // Re-check when profile changes
+    if (isMember && member) {
+      loadMemberInfo();
+    } else {
+      setIsLoading(false);
+    }
+  }, [member?.documentId, isMember]); // Re-load when member ID changes
 
-  const configs = useRecoilValue(configState);
-  const [currentProfile, setCurrentProfile] = useState({
-    dateOfBirth: "",
-  });
-  const refresh = useRecoilRefresher_UNSTABLE(userProfileState);
-  const refreshUserByPhone = useRecoilRefresher_UNSTABLE(
-    userByPhoneNumberState
-  );
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isChange, setIsChange] = useState(false);
+  // ✅ REFACTORED: Helper function to process member data from AuthContext or API
+  const processAuthContextMemberData = (memberData) => {
+    console.log('MemberInfoPage: Processing member data:', memberData);
 
-  // Add a manual refresh function for debugging
-  const handleRefreshMemberData = async () => {
-    console.log('MemberInfoPage: Manual refresh triggered');
-    refreshUserByPhone();
+    if (memberData) {
+      // Check if data is from AuthContext (has documentId) or old API (has customFields)
+      const isAuthContextMember = memberData.documentId !== undefined;
+      const isNewApiResponse = memberData.full_name !== undefined;
 
-    // Also check auth info directly
-    const authInfo = await APIServices.getAuthInfo();
-    console.log('MemberInfoPage: Current authInfo after refresh:', authInfo);
-  };
+      console.log('MemberInfoPage: Data source:', {
+        isAuthContextMember,
+        isNewApiResponse,
+        hasCustomFields: !!memberData.customFields,
+        memberDataKeys: Object.keys(memberData || {})
+      });
 
-  // Don't automatically check membership - always start as guest
-  // Only check membership when user takes explicit action (register/verify)
-  // useEffect(() => {
-  //   const checkMembership = async () => {
-  //     const result = await APIServices.checkIsMember();
-  //     setIsMember(result);
-  //   };
-  //   checkMembership();
-  // }, []);
-
-  useEffect(() => {
-    console.log('MemberInfoPage: isMember:', isMember, 'profile:', profile);
-
-    if (isMember && profile) {
-      // Check if profile is from new verify member API (has direct fields)
-      // or old API (has customFields structure)
-      const isNewApiResponse = profile.full_name !== undefined;
-      console.log('MemberInfoPage: isNewApiResponse:', isNewApiResponse);
-
-      if (isNewApiResponse) {
-        // New API response structure - comprehensive data from GraphQL
-        console.log('MemberInfoPage: Processing comprehensive member data:', profile);
+      if (isAuthContextMember || isNewApiResponse) {
+        // AuthContext member data or new API response structure
+        console.log('MemberInfoPage: Processing AuthContext/GraphQL member data:', memberData);
 
         setCurrentProfile({
-          id: profile.documentId,
-          name: zaloProfile.id,
-          fullname: profile.full_name || "",
-          lastName: profile.last_name || "",
-          firstName: profile.first_name || "",
-          gender: profile.salutation || "",
-          academicDegree: profile.academic_degree || "",
-          ethnicity: profile.ethnicity || "",
-          phoneNumber: profile.phone_number_1 || profile.phone_number_2 || "",
-          zalo: profile.zalo || "",
-          email: profile.email_1 || profile.email_2 || "",
-          homeAddress: profile.home_address || "",
-          provinceCity: profile.province_city || "",
-          district: profile.district || "",
-          company: profile.company || "",
-          companyAddress: profile.company_address || "",
-          companyEstablishmentDate: profile.company_establishment_date || "",
-          numberOfEmployees: profile.number_of_employees || "",
-          businessIndustry: profile.business_industry || "",
-          businessProductsServices: profile.business_products_services || "",
-          position: profile.position || "",
-          officePhone: profile.office_phone || "",
-          website: profile.website || "",
-          assistantName: profile.assistant_name || "",
-          assistantPhone: profile.assistant_phone || "",
-          assistantEmail: profile.assistant_email || "",
-          memberType: profile.member_type || "",
-          status: profile.status || "",
-          joinDate: profile.join_date || "",
-          inactiveDate: profile.inactive_date || "",
-          notes: profile.notes || "",
-          membershipFeeExpirationDate: profile.membership_fee_expiration_date || "",
-          eventsAttended: profile.events_attended || "",
-          numberOfPosts: profile.number_of_posts || "",
-          secretaryInCharge: profile.secretary_in_charge || "",
-          formerExecutiveCommitteeClub: profile.former_executive_committee_club || false,
-          dateOfBirth: profile.date_of_birth
-            ? parseApiDateString(profile.date_of_birth)
+          id: memberData.documentId || memberData.id,
+          name: userInfo?.id,
+          fullname: memberData.full_name || "",
+          lastName: memberData.last_name || "",
+          firstName: memberData.first_name || "",
+          gender: memberData.salutation || "", // Schema enum: Anh, Chi
+          academicDegree: memberData.academic_degree || "",
+          ethnicity: memberData.ethnicity || "",
+          phoneNumber: String(memberData.phone_number_1 || memberData.phone_number_2 || ""),
+          zalo: String(memberData.zalo || ""),
+          email: String(memberData.email_1 || memberData.email_2 || ""),
+          homeAddress: memberData.home_address || "",
+          provinceCity: memberData.province_city || "",
+          district: memberData.district || "",
+          company: memberData.company || "",
+          companyAddress: memberData.company_address || "",
+          companyEstablishmentDate: memberData.company_establishment_date || "",
+          numberOfEmployees: String(memberData.number_of_employees || ""),
+          businessIndustry: String(memberData.business_industry || ""),
+          businessProductsServices: String(memberData.business_products_services || ""),
+          position: memberData.position || "",
+          officePhone: memberData.office_phone || "",
+          website: memberData.website || "",
+          assistantName: memberData.assistant_name || "",
+          assistantPhone: memberData.assistant_phone || "",
+          assistantEmail: memberData.assistant_email || "",
+          memberType: memberData.member_type || "",
+          status: memberData.trang_thai_hoi_vien || memberData.status || "Dang_hoat_dong", // ✅ FIXED: Use correct field name
+          joinDate: memberData.join_date || "",
+          inactiveDate: memberData.inactive_date || "",
+          notes: String(memberData.notes || ""),
+          membershipFeeExpirationDate: memberData.membership_fee_expiration_date || "",
+          eventsAttended: Number(memberData.events_attended) || 0, // ✅ FIXED: Convert to number
+          numberOfPosts: Number(memberData.number_of_posts) || 0, // ✅ FIXED: Convert to number
+          secretaryInCharge: memberData.secretary_in_charge || "",
+          formerExecutiveCommitteeClub: memberData.former_executive_committee_club || false,
+          dateOfBirth: memberData?.date_of_birth
+            ? parseApiDateString(memberData?.date_of_birth)
             : "",
           // Chapter information
-          chapter: profile.chapter ? {
-            id: profile.chapter.documentId,
-            name: profile.chapter.ten_chi_hoi,
-            secretary: profile.chapter.thu_ky_phu_trach,
-            memberCount: profile.chapter.so_luong_hoi_vien,
-            newMembersThisYear: profile.chapter.hoi_vien_moi_trong_nam,
-            inactiveMembers: profile.chapter.hoi_vien_ngung_hoat_dong,
-            eventsList: profile.chapter.danh_sach_su_kien,
-            membersList: profile.chapter.danh_sach_hoi_vien,
-            feesCollected: profile.chapter.hoi_phi_da_thu,
-            assistantSecretary: profile.chapter.thu_ky_phu
+          chapter: memberData?.chapter ? {
+            id: memberData.chapter.documentId,
+            name: memberData.chapter.ten_chi_hoi,
+            secretary: memberData.chapter.thu_ky_chinh ? {
+              documentId: memberData.chapter.thu_ky_chinh.documentId,
+              full_name: memberData.chapter.thu_ky_chinh.full_name,
+              phone_number_1: memberData.chapter.thu_ky_chinh.phone_number_1,
+              email_1: memberData.chapter.thu_ky_chinh.email_1,
+              position: memberData.chapter.thu_ky_chinh.position
+            } : null,
+            assistantSecretary: memberData.chapter.thu_ky_phu ? {
+              documentId: memberData.chapter.thu_ky_phu.documentId,
+              full_name: memberData.chapter.thu_ky_phu.full_name,
+              phone_number_1: memberData.chapter.thu_ky_phu.phone_number_1,
+              email_1: memberData.chapter.thu_ky_phu.email_1,
+              position: memberData.chapter.thu_ky_phu.position
+            } : null,
+            memberCount: Number(memberData.chapter.so_luong_hoi_vien) || 0, // ✅ FIXED: Convert to number
+            newMembersThisYear: Number(memberData.chapter.hoi_vien_moi_trong_nam) || 0, // ✅ FIXED: Convert to number
+            inactiveMembers: Number(memberData.chapter.hoi_vien_ngung_hoat_dong) || 0, // ✅ FIXED: Convert to number
+            eventsList: memberData.chapter.danh_sach_su_kien,
+            membersList: memberData.chapter.danh_sach_hoi_vien,
+            feesCollected: memberData.chapter.hoi_phi_da_thu
           } : null,
           // Member image
-          memberImage: profile.member_image ? {
-            id: profile.member_image.documentId,
-            url: profile.member_image.url,
-            name: profile.member_image.name,
-            size: profile.member_image.size,
-            mime: profile.member_image.mime
+          memberImage: memberData?.member_image ? {
+            id: String(memberData.member_image.documentId || ""),
+            url: String(memberData.member_image.url || ""),
+            name: String(memberData.member_image.name || ""),
+            size: Number(memberData.member_image.size) || 0, // ✅ FIXED: Convert to number
+            mime: String(memberData.member_image.mime || "")
           } : null,
           // Account information
-          accounts: profile.tai_khoan || [],
+          accounts: memberData?.tai_khoan || [],
           // Membership fees
-          membershipFees: profile.hoi_phi || [],
+          membershipFees: memberData?.hoi_phi || [],
           // Executive committee roles
-          executiveRoles: profile.ban_chap_hanh || []
+          executiveRoles: memberData?.ban_chap_hanh || []
         });
 
-        console.log('MemberInfoPage: Set comprehensive profile data with chapter:', profile.chapter?.ten_chi_hoi);
-      } else {
-        // Old API response structure (customFields)
+        console.log('MemberInfoPage: Set comprehensive profile data with chapter:', memberData?.chapter?.ten_chi_hoi);
+      } else if (memberData.customFields) {
+        // Old API response structure (customFields) - only process if customFields exists
+        console.log('MemberInfoPage: Processing old customFields member data:', memberData);
+
         setCurrentProfile({
-          id: profile.id,
-          name: zaloProfile.id,
-          fullname: profile.customFields?.["Họ và tên"] || "",
-          gender: profile.customFields?.["Nhân xưng"]?.[0] || "",
-          phoneNumber:
-            profile.customFields?.["Số điện thoại 1"] ||
-            profile.customFields?.["Số điện thoại 2"] ||
-            "",
-          email:
-            profile.customFields?.["Email 1"] ||
-            profile.customFields?.["Email 2"] ||
-            "",
-          company: profile.customFields?.["Công ty"] || "",
-          position: profile.customFields?.["Chức vụ"] || "",
-          dateOfBirth: profile.customFields?.["Ngày sinh"]
-            ? parseApiDateString(profile.customFields?.["Ngày sinh"])
+          id: memberData.id,
+          name: userInfo?.id,
+          fullname: memberData.customFields?.["Họ và tên"] || "",
+          gender: memberData.customFields?.["Nhân xưng"]?.[0] || "",
+          phoneNumber: String(
+            memberData.customFields?.["Số điện thoại 1"] ||
+            memberData.customFields?.["Số điện thoại 2"] ||
+            ""
+          ),
+          email: String(
+            memberData.customFields?.["Email 1"] ||
+            memberData.customFields?.["Email 2"] ||
+            ""
+          ),
+          company: memberData.customFields?.["Công ty"] || "",
+          position: memberData.customFields?.["Chức vụ"] || "",
+          dateOfBirth: memberData.customFields?.["Ngày sinh"]
+            ? parseApiDateString(memberData.customFields?.["Ngày sinh"])
             : "",
+        });
+      } else {
+        // ===== NEW: Handle case where member data exists but has no customFields =====
+        console.log('MemberInfoPage: Member data exists but no customFields - setting basic profile');
+
+        // Set basic profile with available data from AuthContext member
+        setCurrentProfile({
+          id: memberData.documentId || memberData.id,
+          name: userInfo?.id,
+          fullname: memberData.full_name || userInfo?.name || "Chưa cập nhật",
+          lastName: memberData.last_name || "",
+          firstName: memberData.first_name || "",
+          gender: memberData.salutation || "",
+          phoneNumber: String(memberData.phone_number_1 || memberData.phone_number_2 || ""),
+          email: String(memberData.email_1 || memberData.email_2 || ""),
+          company: memberData.company || "",
+          position: memberData.position || "",
+          dateOfBirth: memberData?.date_of_birth ? parseApiDateString(memberData?.date_of_birth) : "",
         });
       }
     }
-  }, [isMember, profile, zaloProfile.id]);
+  };
 
   const parseApiDateString = (dateStr) => {
     if (!dateStr) return "";
@@ -194,6 +246,8 @@ const MemberInfoPage = () => {
       return "";
     }
   };
+
+  // ✅ REMOVED: Unused helper functions
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -215,36 +269,7 @@ const MemberInfoPage = () => {
     setIsChange(true);
   };
 
-  const parseDateString = (dateStr) => {
-    if (!dateStr) return null;
-
-    // If it's already a Date object, just return it
-    if (dateStr instanceof Date) return dateStr;
-
-    try {
-      if (typeof dateStr === "string" && dateStr.includes("/")) {
-        const parts = dateStr.split("/");
-        if (parts.length === 3) {
-          const [day, month, year] = parts;
-          return new Date(`${year}-${month}-${day}`);
-        }
-      }
-      // Try to create a date from the string
-      const date = new Date(dateStr);
-      return isNaN(date.getTime()) ? null : date;
-    } catch (error) {
-      console.error("Error parsing date:", error);
-      return null;
-    }
-  };
-
-  const goBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/");
-    }
-  };
+  // ✅ REMOVED: Unused helper functions
 
   const verifyEmail = (email) => {
     if (!email) return false;
@@ -254,8 +279,10 @@ const MemberInfoPage = () => {
 
   const verifyPhone = (phoneNumber) => {
     if (!phoneNumber) return false;
+    // ✅ FIXED: Ensure phone number is string and clean it
+    const cleanPhone = String(phoneNumber).trim().replace(/\s+/g, '');
     const vnPhoneRegex = /^(0|\+84|84)[0-9]{9}$/;
-    return vnPhoneRegex.test(phoneNumber);
+    return vnPhoneRegex.test(cleanPhone);
   };
 
   const verifyInfo = () => {
@@ -274,12 +301,12 @@ const MemberInfoPage = () => {
     return isChange;
   };
 
-  const verifySuccess = () => {
-    setPopupVerifySuccess(false);
-    setTimeout(() => {
-      refresh();
-    }, 300);
-  };
+  // const verifySuccess = () => {
+  //   setPopupVerifySuccess(false);
+  //   setTimeout(() => {
+  //     refresh();
+  //   }, 300);
+  // };
 
   const save = async () => {
     let isValid = true;
@@ -381,6 +408,20 @@ const MemberInfoPage = () => {
     }
   };
 
+  // ✅ ADDED: Loading state display
+  if (isLoading) {
+    return (
+      <Page className="bg-white page safe-page-content">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Đang tải thông tin hội viên...</p>
+          </div>
+        </div>
+      </Page>
+    );
+  }
+
   return (
     <Page className="bg-white page safe-page-content">
       <div className="">
@@ -388,13 +429,14 @@ const MemberInfoPage = () => {
           <label className="text-base font-bold">Ảnh đại diện</label>
           <div className="mt-2">
             <img
-              className="w-20 h-20 rounded-full"
-              src={
-                // Use member image if available, otherwise Zalo avatar, otherwise default
-                currentProfile.memberImage?.url ||
-                (zaloProfile && zaloProfile.avatar) ||
-                "https://api.ybahcm.vn/public/yba/default-avatar.png"
-              }
+              {...getImageProps(
+                currentProfile.memberImage?.url || userInfo?.avatar,
+                "https://api.ybahcm.vn/public/yba/default-avatar.png",
+                {
+                  alt: currentProfile.fullname || "Member avatar",
+                  className: "w-20 h-20 rounded-full"
+                }
+              )}
             />
           </div>
         </div>
@@ -426,23 +468,26 @@ const MemberInfoPage = () => {
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Chi hội:</label>
                   <p className="text-sm text-gray-900">{currentProfile.chapter.name}</p>
+                  {currentProfile.chapter.memberCount > 0 && (
+                    <p className="text-xs text-gray-600">Số hội viên: {currentProfile.chapter.memberCount.toLocaleString('vi-VN')}</p>
+                  )}
                   {currentProfile.chapter.secretary && (
-                    <p className="text-xs text-gray-600">Thư ký phụ trách: {currentProfile.chapter.secretary}</p>
+                    <p className="text-xs text-gray-600">Thư ký: {currentProfile.chapter.secretary.full_name}</p>
                   )}
                 </div>
               )}
 
-              {currentProfile.eventsAttended && (
+              {currentProfile.eventsAttended > 0 && (
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Sự kiện đã tham gia:</label>
-                  <p className="text-sm text-gray-900">{currentProfile.eventsAttended}</p>
+                  <p className="text-sm text-gray-900">{currentProfile.eventsAttended.toLocaleString('vi-VN')}</p>
                 </div>
               )}
 
-              {currentProfile.numberOfPosts && (
+              {currentProfile.numberOfPosts > 0 && (
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Số bài viết:</label>
-                  <p className="text-sm text-gray-900">{currentProfile.numberOfPosts}</p>
+                  <p className="text-sm text-gray-900">{currentProfile.numberOfPosts.toLocaleString('vi-VN')}</p>
                 </div>
               )}
             </div>
@@ -519,7 +564,7 @@ const MemberInfoPage = () => {
                   <div className="flex items-center mb-2" key={i}>
                     <input
                       id={`gender_${i}`}
-                      checked={currentProfile.gender === v}
+                      checked={currentProfile?.gender === v}
                       type="radio"
                       name="gender"
                       value={v}
@@ -544,7 +589,7 @@ const MemberInfoPage = () => {
               disabled={isMember && !!currentProfile.fullname}
               type="text"
               className="border disabled:bg-[#E5E5E5] w-full h-12 p-4 rounded-md"
-              value={currentProfile.fullname || ""}
+              value={currentProfile?.fullname || ""}
               name="fullname"
               onChange={handleChange}
               placeholder="Họ và Tên đã đăng ký với YBA"
@@ -561,12 +606,14 @@ const MemberInfoPage = () => {
               type="tel"
               disabled={
                 isMember &&
-                (!!profile.customFields?.["Số điện thoại 1"] ||
-                  !!profile.customFields?.["Số điện thoại 2"])
+                (!!profile?.customFields?.["Số điện thoại 1"] ||
+                  !!profile?.customFields?.["Số điện thoại 2"] ||
+                  !!member?.phone_number_1 ||
+                  !!member?.phone_number_2)
               }
               className="border disabled:bg-[#E5E5E5] w-full h-12 p-4 rounded-md"
               placeholder="Nhập số điện thoại đã đăng ký với YBA"
-              value={currentProfile.phoneNumber}
+              value={currentProfile?.phoneNumber || ""}
               name="phoneNumber"
               onChange={handleChange}
             />
@@ -581,13 +628,15 @@ const MemberInfoPage = () => {
             <input
               disabled={
                 isMember &&
-                (!!profile.customFields?.["Email 1"] ||
-                  !!profile.customFields?.["Email 2"])
+                (!!profile?.customFields?.["Email 1"] ||
+                  !!profile?.customFields?.["Email 2"] ||
+                  !!member?.email_1 ||
+                  !!member?.email_2)
               }
               type="text"
               className="border disabled:bg-[#E5E5E5] w-full h-12 p-4 rounded-md"
               placeholder="Nhập email đã đăng ký với YBA"
-              value={currentProfile.email}
+              value={currentProfile?.email || ""}
               name="email"
               onChange={handleChange}
             />
@@ -602,7 +651,7 @@ const MemberInfoPage = () => {
               dateFormat="dd/mm/yyyy"
               title="Ngày/Tháng/Năm sinh"
               name="dateOfBirth"
-              value={currentProfile.dateOfBirth}
+              value={currentProfile?.dateOfBirth || ""}
               onChange={(date) => {
                 setCurrentProfile({
                   ...currentProfile,
@@ -621,7 +670,7 @@ const MemberInfoPage = () => {
                 type="text"
                 className="w-full h-12 p-4 border rounded-md"
                 placeholder="Nhập tên doanh nghiệp"
-                value={currentProfile.company}
+                value={currentProfile?.company || ""}
                 name="company"
                 onChange={handleChange}
               />
@@ -637,7 +686,7 @@ const MemberInfoPage = () => {
                 type="text"
                 className="w-full h-12 p-4 border rounded-md"
                 placeholder="Nhập chức vụ"
-                value={currentProfile.position}
+                value={currentProfile?.position || ""}
                 name="position"
                 onChange={handleChange}
               />

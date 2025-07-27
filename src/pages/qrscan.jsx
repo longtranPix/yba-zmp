@@ -41,54 +41,88 @@ const QRScanPage = () => {
     lastScannedCode.current = result.text;
 
     try {
-      const ticketInfo = await APIService.getTicketInfo(result.text);
+      console.log('QRScan: Processing QR code:', result.text);
 
-      if (!ticketInfo || ticketInfo.error !== 0) {
-        return showModal({
-          type: "error",
-          title: "Mã QR không hợp lệ",
-          message:
-            ticketInfo?.message || "Không tìm thấy thông tin vé trên hệ thống",
-        });
+      // ===== FIXED: Try to extract documentId from QR code =====
+      let documentId = result.text;
+
+      // Handle different QR code formats
+      if (result.text.includes('documentId=')) {
+        // Format: "documentId=ABC123" or URL with documentId parameter
+        const match = result.text.match(/documentId=([^&\s]+)/);
+        if (match) {
+          documentId = match[1];
+        }
+      } else if (result.text.includes('/ticket/')) {
+        // Format: URL with ticket ID in path
+        const match = result.text.match(/\/ticket\/([^\/\?]+)/);
+        if (match) {
+          documentId = match[1];
+        }
+      } else if (result.text.startsWith('http')) {
+        // Try to extract ID from URL path
+        const urlParts = result.text.split('/');
+        documentId = urlParts[urlParts.length - 1];
       }
 
-      if (ticketInfo.data?.customFields["Check in"]) {
-        return showModal({
-          type: "error",
-          title: "Vé đã được check-in",
-          message: "Vé này đã được check-in trước đó",
-        });
-      }
+      console.log('QRScan: Extracted documentId:', documentId);
 
-      const response = await APIService.updateTicket(
-        ticketInfo.data.customFields["Zalo ID OA"],
-        ticketInfo.data.id
-      );
+      // ✅ ENHANCED: Use improved QR check-in API with pre-check
+      const response = await APIService.checkInByQRCode(documentId);
 
-      if (
-        response?.error === 0 ||
-        response?.message === "Success" ||
-        response?.message === "success" ||
-        response?.message === 200
-      ) {
+      console.log('QRScan: API response:', response);
+
+      if (response?.error === 0) {
+        // ✅ SUCCESS: Ticket was successfully checked in
+        const ticketData = response.data;
+
         showModal({
           type: "success",
           title: "Check-in thành công",
-          message: `Vé ${ticketInfo.data.customFields["Mã vé"]} đã được check-in`,
+          message: `Vé ${ticketData.ma_ve} - ${ticketData.ten_nguoi_dang_ky} đã được check-in thành công`,
         });
+
+        console.log('QRScan: Check-in successful:', {
+          documentId: ticketData.documentId,
+          ma_ve: ticketData.ma_ve,
+          ten_nguoi_dang_ky: ticketData.ten_nguoi_dang_ky,
+          da_check_in: ticketData.da_check_in
+        });
+
       } else {
-        showModal({
-          type: "error",
-          title: "Check-in thất bại",
-          message: "Có lỗi xảy ra khi check-in",
+        // ✅ ERROR: Handle different error scenarios
+        const ticketData = response.data;
+
+        // Check if this is an "already checked in" error with ticket data
+        if (ticketData && ticketData.da_check_in === true) {
+          showModal({
+            type: "error",
+            title: "Vé đã được check-in",
+            message: `Vé ${ticketData.ma_ve} của ${ticketData.ten_nguoi_dang_ky} đã được check-in trước đó`,
+          });
+        } else {
+          // Other errors (ticket not found, system errors, etc.)
+          showModal({
+            type: "error",
+            title: response?.alert?.title || "Check-in thất bại",
+            message: response?.alert?.message || response?.message || "Không thể check-in vé này. Vui lòng kiểm tra lại mã QR.",
+          });
+        }
+
+        console.error('QRScan: Check-in failed:', {
+          error: response?.error,
+          message: response?.message,
+          alert: response?.alert,
+          ticketData: ticketData
         });
       }
+
     } catch (error) {
-      console.error("System error:", error);
+      console.error("QRScan: System error:", error);
       showModal({
         type: "error",
-        title: "Mã QR không hợp lệ",
-        message: "Liên hệ với YBA để được hỗ trợ",
+        title: "Lỗi hệ thống",
+        message: "Có lỗi xảy ra khi xử lý mã QR. Vui lòng thử lại hoặc liên hệ YBA để được hỗ trợ.",
       });
     }
   };
@@ -120,7 +154,7 @@ const QRScanPage = () => {
           constraints={{
             facingMode: "environment",
           }}
-          onResult={(result, error) => {
+          onResult={(result, _error) => {
             if (!!result) {
               handleScan(result);
             }

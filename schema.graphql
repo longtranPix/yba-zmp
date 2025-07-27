@@ -315,6 +315,10 @@ type UploadFileEntityResponseCollection {
   pageInfo: Pagination!
 }
 
+type UploadFileRelationResponseCollection {
+  nodes: [UploadFile!]!
+}
+
 input I18NLocaleFiltersInput {
   documentId: IDFilterInput
   name: StringFilterInput
@@ -487,6 +491,12 @@ type UsersPermissionsRoleEntityResponseCollection {
   pageInfo: Pagination!
 }
 
+enum ENUM_USERSPERMISSIONSUSER_LOAI_TAI_KHOAN_YBA {
+  Quan_tri_vien
+  Hoi_vien
+  Khach
+}
+
 input UsersPermissionsUserFiltersInput {
   documentId: IDFilterInput
   username: StringFilterInput
@@ -495,6 +505,15 @@ input UsersPermissionsUserFiltersInput {
   confirmed: BooleanFilterInput
   blocked: BooleanFilterInput
   role: UsersPermissionsRoleFiltersInput
+  name: StringFilterInput
+  account: AccountFiltersInput
+  loai_tai_khoan_yba: StringFilterInput
+  thong_tin_hoi_vien: MemberInformationFiltersInput
+  ho_ten: StringFilterInput
+  so_dien_thoai: StringFilterInput
+  ngay_tao: DateTimeFilterInput
+  lan_dang_nhap_cuoi: DateTimeFilterInput
+  ghi_chu: StringFilterInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -510,6 +529,15 @@ input UsersPermissionsUserInput {
   confirmed: Boolean
   blocked: Boolean
   role: ID
+  name: String
+  account: ID
+  loai_tai_khoan_yba: ENUM_USERSPERMISSIONSUSER_LOAI_TAI_KHOAN_YBA
+  thong_tin_hoi_vien: ID
+  ho_ten: String
+  so_dien_thoai: String
+  ngay_tao: DateTime
+  lan_dang_nhap_cuoi: DateTime
+  ghi_chu: String
   publishedAt: DateTime
   password: String
 }
@@ -517,11 +545,20 @@ input UsersPermissionsUserInput {
 type UsersPermissionsUser {
   documentId: ID!
   username: String!
-  email: String!
+  email: String
   provider: String
   confirmed: Boolean
   blocked: Boolean
   role: UsersPermissionsRole
+  name: String
+  account: Account
+  loai_tai_khoan_yba: ENUM_USERSPERMISSIONSUSER_LOAI_TAI_KHOAN_YBA
+  thong_tin_hoi_vien: MemberInformation
+  ho_ten: String
+  so_dien_thoai: String
+  ngay_tao: DateTime
+  lan_dang_nhap_cuoi: DateTime
+  ghi_chu: String
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -608,6 +645,25 @@ type AccountRelationResponseCollection {
   nodes: [Account!]!
 }
 
+input AppConfigInput {
+  oa_info: JSON
+  bank_info: JSON
+  banners: JSON
+  app_info: JSON
+  publishedAt: DateTime
+}
+
+type AppConfig {
+  documentId: ID!
+  oa_info: JSON
+  bank_info: JSON
+  banners: JSON
+  app_info: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
 input BankFiltersInput {
   documentId: IDFilterInput
   ten_chu_tai_khoan: StringFilterInput
@@ -650,7 +706,7 @@ input BdsdFiltersInput {
   documentId: IDFilterInput
   ma_giao_dich: StringFilterInput
   noi_dung_giao_dich: StringFilterInput
-  so_tien: FloatFilterInput
+  so_tien: LongFilterInput
   tai_khoan_nhan: StringFilterInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
@@ -663,7 +719,7 @@ input BdsdFiltersInput {
 input BdsdInput {
   ma_giao_dich: String
   noi_dung_giao_dich: String
-  so_tien: Float
+  so_tien: Long
   tai_khoan_nhan: String
   publishedAt: DateTime
 }
@@ -672,7 +728,7 @@ type Bdsd {
   documentId: ID!
   ma_giao_dich: String!
   noi_dung_giao_dich: String
-  so_tien: Float!
+  so_tien: Long!
   tai_khoan_nhan: String
   createdAt: DateTime
   updatedAt: DateTime
@@ -687,7 +743,6 @@ type BdsdEntityResponseCollection {
 input ChapterFiltersInput {
   documentId: IDFilterInput
   ten_chi_hoi: StringFilterInput
-  thu_ky_phu_trach: StringFilterInput
   so_luong_hoi_vien: IntFilterInput
   hoi_vien_moi_trong_nam: IntFilterInput
   hoi_vien_ngung_hoat_dong: IntFilterInput
@@ -695,8 +750,9 @@ input ChapterFiltersInput {
   danh_sach_hoi_vien: StringFilterInput
   hoi_phi_da_thu: FloatFilterInput
   ban_chap_hanh: ExecutiveCommitteeFiltersInput
-  thu_ky_phu: StringFilterInput
   hoi_vien: MemberInformationFiltersInput
+  thu_ky_chinh: UsersPermissionsUserFiltersInput
+  thu_ky_phu: UsersPermissionsUserFiltersInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -707,7 +763,6 @@ input ChapterFiltersInput {
 
 input ChapterInput {
   ten_chi_hoi: String
-  thu_ky_phu_trach: String
   so_luong_hoi_vien: Int
   hoi_vien_moi_trong_nam: Int
   hoi_vien_ngung_hoat_dong: Int
@@ -715,15 +770,15 @@ input ChapterInput {
   danh_sach_hoi_vien: String
   hoi_phi_da_thu: Float
   ban_chap_hanh: [ID]
-  thu_ky_phu: String
   hoi_vien: [ID]
+  thu_ky_chinh: ID
+  thu_ky_phu: ID
   publishedAt: DateTime
 }
 
 type Chapter {
   documentId: ID!
   ten_chi_hoi: String!
-  thu_ky_phu_trach: String
   so_luong_hoi_vien: Int
   hoi_vien_moi_trong_nam: Int
   hoi_vien_ngung_hoat_dong: Int
@@ -732,9 +787,10 @@ type Chapter {
   hoi_phi_da_thu: Float
   ban_chap_hanh_connection(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): ExecutiveCommitteeRelationResponseCollection
   ban_chap_hanh(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [ExecutiveCommittee]!
-  thu_ky_phu: String
   hoi_vien_connection(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): MemberInformationRelationResponseCollection
   hoi_vien(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [MemberInformation]!
+  thu_ky_chinh: UsersPermissionsUser
+  thu_ky_phu: UsersPermissionsUser
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -751,7 +807,7 @@ input CompanyFiltersInput {
   su_kien: EventInformationFiltersInput
   hoi_vien: MemberInformationFiltersInput
   lien_ket_zalo_oa: StringFilterInput
-  tong_so_tien_tai_tro: FloatFilterInput
+  tong_so_tien_tai_tro: LongFilterInput
   danh_sach_tai_tro: StringFilterInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
@@ -767,7 +823,7 @@ input CompanyInput {
   su_kien: ID
   hoi_vien: ID
   lien_ket_zalo_oa: String
-  tong_so_tien_tai_tro: Float
+  tong_so_tien_tai_tro: Long
   danh_sach_tai_tro: String
   publishedAt: DateTime
 }
@@ -779,7 +835,7 @@ type Company {
   su_kien: EventInformation
   hoi_vien: MemberInformation
   lien_ket_zalo_oa: String
-  tong_so_tien_tai_tro: Float
+  tong_so_tien_tai_tro: Long
   danh_sach_tai_tro: String
   createdAt: DateTime
   updatedAt: DateTime
@@ -883,6 +939,7 @@ input EventInformationFiltersInput {
   thoi_gian_to_chuc: DateTimeFilterInput
   dia_diem: StringFilterInput
   trang_thai: StringFilterInput
+  bank: BankFiltersInput
   loai_ve: TicketPricesManageFiltersInput
   chi_danh_cho_hoi_vien: BooleanFilterInput
   so_ve_toi_da: IntFilterInput
@@ -899,6 +956,7 @@ input EventInformationFiltersInput {
   trang_thai_phe_duyet_2: StringFilterInput
   tong_so_tien_tai_tro: FloatFilterInput
   phe_duyet_su_kien: EventApprovalFiltersInput
+  auto_zns_social_media: BooleanFilterInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -917,6 +975,7 @@ input EventInformationInput {
   thoi_gian_to_chuc: DateTime
   dia_diem: String
   trang_thai: ENUM_EVENTINFORMATION_TRANG_THAI
+  bank: ID
   loai_ve: [ID]
   chi_danh_cho_hoi_vien: Boolean
   so_ve_toi_da: Int
@@ -933,6 +992,7 @@ input EventInformationInput {
   trang_thai_phe_duyet_2: ENUM_EVENTINFORMATION_TRANG_THAI_PHE_DUYET_2
   tong_so_tien_tai_tro: Float
   phe_duyet_su_kien: [ID]
+  auto_zns_social_media: Boolean
   publishedAt: DateTime
 }
 
@@ -947,6 +1007,7 @@ type EventInformation {
   thoi_gian_to_chuc: DateTime
   dia_diem: String
   trang_thai: ENUM_EVENTINFORMATION_TRANG_THAI
+  bank: Bank
   loai_ve_connection(filters: TicketPricesManageFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): TicketPricesManageRelationResponseCollection
   loai_ve(filters: TicketPricesManageFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [TicketPricesManage]!
   chi_danh_cho_hoi_vien: Boolean
@@ -968,6 +1029,7 @@ type EventInformation {
   tong_so_tien_tai_tro: Float
   phe_duyet_su_kien_connection(filters: EventApprovalFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): EventApprovalRelationResponseCollection
   phe_duyet_su_kien(filters: EventApprovalFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [EventApproval]!
+  auto_zns_social_media: Boolean
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -979,6 +1041,7 @@ type EventInformationEntityResponseCollection {
 }
 
 enum ENUM_EVENTREGISTRATION_TRANG_THAI {
+  Moi
   Da_thanh_toan
   Da_phat_hanh
   Da_huy
@@ -998,7 +1061,7 @@ input EventRegistrationFiltersInput {
   so_dien_thoai: StringFilterInput
   email: StringFilterInput
   da_check_in: BooleanFilterInput
-  gia_ve: FloatFilterInput
+  gia_ve: LongFilterInput
   ngay_mua: DateFilterInput
   trang_thai: StringFilterInput
   trang_thai_thanh_toan: StringFilterInput
@@ -1007,12 +1070,20 @@ input EventRegistrationFiltersInput {
   ma_zalo: StringFilterInput
   ma_zalo_oa: StringFilterInput
   ve_chinh: BooleanFilterInput
+  ve_cha: EventRegistrationFiltersInput
+  ve_con: EventRegistrationFiltersInput
   hien_thi_loai_ve: StringFilterInput
   hoi_vien: MemberInformationFiltersInput
   nhan_vien_phe_duyet: StringFilterInput
   danh_gia: IntFilterInput
   ghi_chu_khach_hang: StringFilterInput
   su_kien: EventInformationFiltersInput
+  auto_zns_checkout: BooleanFilterInput
+  auto_zns_send_ticket: BooleanFilterInput
+  auto_zns_event_notification: BooleanFilterInput
+  auto_zns_event_review: BooleanFilterInput
+  ma_thanh_toan: StringFilterInput
+  html_ve: StringFilterInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -1028,7 +1099,7 @@ input EventRegistrationInput {
   so_dien_thoai: String
   email: String
   da_check_in: Boolean
-  gia_ve: Float
+  gia_ve: Long
   ngay_mua: Date
   trang_thai: ENUM_EVENTREGISTRATION_TRANG_THAI
   trang_thai_thanh_toan: ENUM_EVENTREGISTRATION_TRANG_THAI_THANH_TOAN
@@ -1037,12 +1108,20 @@ input EventRegistrationInput {
   ma_zalo: String
   ma_zalo_oa: String
   ve_chinh: Boolean
+  ve_cha: ID
+  ve_con: [ID]
   hien_thi_loai_ve: String
   hoi_vien: ID
   nhan_vien_phe_duyet: String
   danh_gia: Int
   ghi_chu_khach_hang: String
   su_kien: ID
+  auto_zns_checkout: Boolean
+  auto_zns_send_ticket: Boolean
+  auto_zns_event_notification: Boolean
+  auto_zns_event_review: Boolean
+  ma_thanh_toan: String
+  html_ve: String
   publishedAt: DateTime
 }
 
@@ -1054,7 +1133,7 @@ type EventRegistration {
   so_dien_thoai: String
   email: String
   da_check_in: Boolean
-  gia_ve: Float
+  gia_ve: Long
   ngay_mua: Date
   trang_thai: ENUM_EVENTREGISTRATION_TRANG_THAI
   trang_thai_thanh_toan: ENUM_EVENTREGISTRATION_TRANG_THAI_THANH_TOAN
@@ -1063,12 +1142,21 @@ type EventRegistration {
   ma_zalo: String
   ma_zalo_oa: String
   ve_chinh: Boolean
+  ve_cha: EventRegistration
+  ve_con_connection(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): EventRegistrationRelationResponseCollection
+  ve_con(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [EventRegistration]!
   hien_thi_loai_ve: String
   hoi_vien: MemberInformation
   nhan_vien_phe_duyet: String
   danh_gia: Int
   ghi_chu_khach_hang: String
   su_kien: EventInformation
+  auto_zns_checkout: Boolean
+  auto_zns_send_ticket: Boolean
+  auto_zns_event_notification: Boolean
+  auto_zns_event_review: Boolean
+  ma_thanh_toan: String
+  html_ve: String
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -1095,6 +1183,7 @@ input ExecutiveCommitteeFiltersInput {
   chuc_vu_trong_cong_ty: StringFilterInput
   nhiem_ky_ban_chap_hanh: BooleanFilterInput
   nhiem_ky: StringFilterInput
+  chapter: ChapterFiltersInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -1115,6 +1204,7 @@ input ExecutiveCommitteeInput {
   chuc_vu_trong_cong_ty: String
   nhiem_ky_ban_chap_hanh: Boolean
   nhiem_ky: String
+  chapter: ID
   publishedAt: DateTime
 }
 
@@ -1131,6 +1221,7 @@ type ExecutiveCommittee {
   chuc_vu_trong_cong_ty: String
   nhiem_ky_ban_chap_hanh: Boolean
   nhiem_ky: String
+  chapter: Chapter
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -1145,47 +1236,29 @@ type ExecutiveCommitteeRelationResponseCollection {
   nodes: [ExecutiveCommittee!]!
 }
 
-enum ENUM_MEMBERBENEFITS_LOAI_UU_DAI {
-  Giam_gia
-  Qua_tang
-  Dich_vu_mien_phi
-  Uu_tien
-  Khac
+input LayoutConfigInput {
+  config: JSON
+  publishedAt: DateTime
 }
 
-enum ENUM_MEMBERBENEFITS_DON_VI_GIA_TRI {
-  VND
-  Phan_tram
-  Diem
-  Lan
-}
-
-enum ENUM_MEMBERBENEFITS_TRANG_THAI {
-  Dang_hoat_dong
-  Tam_ngung
-  Het_han
-  Chua_ap_dung
+type LayoutConfig {
+  documentId: ID!
+  config: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
 }
 
 input MemberBenefitsFiltersInput {
   documentId: IDFilterInput
-  ma_code: StringFilterInput
   ten_uu_dai: StringFilterInput
+  ngay_het_han: DateFilterInput
+  ngay_tao: DateFilterInput
+  cong_ty: CompanyFiltersInput
+  noi_dung: StringFilterInput
+  hien_thi: BooleanFilterInput
+  uu_tien_hien_thi: BooleanFilterInput
   mo_ta: StringFilterInput
-  loai_uu_dai: StringFilterInput
-  gia_tri_uu_dai: FloatFilterInput
-  don_vi_gia_tri: StringFilterInput
-  ngay_bat_dau: DateFilterInput
-  ngay_ket_thuc: DateFilterInput
-  trang_thai: StringFilterInput
-  dieu_kien_ap_dung: StringFilterInput
-  doi_tac: StringFilterInput
-  thong_tin_lien_he: StringFilterInput
-  so_luong_gioi_han: IntFilterInput
-  da_su_dung: IntFilterInput
-  ghi_chu: StringFilterInput
-  nguoi_tao: StringFilterInput
-  hoi_vien_ap_dung: MemberInformationFiltersInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -1195,48 +1268,31 @@ input MemberBenefitsFiltersInput {
 }
 
 input MemberBenefitsInput {
-  ma_code: String
   ten_uu_dai: String
+  ngay_het_han: Date
+  ngay_tao: Date
+  hinh_logo: ID
+  hinh_banner: ID
+  cong_ty: ID
+  noi_dung: String
+  hien_thi: Boolean
+  uu_tien_hien_thi: Boolean
   mo_ta: String
-  loai_uu_dai: ENUM_MEMBERBENEFITS_LOAI_UU_DAI
-  gia_tri_uu_dai: Float
-  don_vi_gia_tri: ENUM_MEMBERBENEFITS_DON_VI_GIA_TRI
-  ngay_bat_dau: Date
-  ngay_ket_thuc: Date
-  trang_thai: ENUM_MEMBERBENEFITS_TRANG_THAI
-  dieu_kien_ap_dung: String
-  doi_tac: String
-  thong_tin_lien_he: String
-  so_luong_gioi_han: Int
-  da_su_dung: Int
-  hinh_anh: ID
-  ghi_chu: String
-  nguoi_tao: String
-  hoi_vien_ap_dung: [ID]
   publishedAt: DateTime
 }
 
 type MemberBenefits {
   documentId: ID!
-  ma_code: String!
   ten_uu_dai: String!
+  ngay_het_han: Date
+  ngay_tao: Date
+  hinh_logo: UploadFile
+  hinh_banner: UploadFile
+  cong_ty: Company
+  noi_dung: String
+  hien_thi: Boolean
+  uu_tien_hien_thi: Boolean
   mo_ta: String
-  loai_uu_dai: ENUM_MEMBERBENEFITS_LOAI_UU_DAI
-  gia_tri_uu_dai: Float
-  don_vi_gia_tri: ENUM_MEMBERBENEFITS_DON_VI_GIA_TRI
-  ngay_bat_dau: Date!
-  ngay_ket_thuc: Date
-  trang_thai: ENUM_MEMBERBENEFITS_TRANG_THAI
-  dieu_kien_ap_dung: String
-  doi_tac: String
-  thong_tin_lien_he: String
-  so_luong_gioi_han: Int
-  da_su_dung: Int
-  hinh_anh: UploadFile
-  ghi_chu: String
-  nguoi_tao: String
-  hoi_vien_ap_dung_connection(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): MemberInformationRelationResponseCollection
-  hoi_vien_ap_dung(filters: MemberInformationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [MemberInformation]!
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -1245,10 +1301,6 @@ type MemberBenefits {
 type MemberBenefitsEntityResponseCollection {
   nodes: [MemberBenefits!]!
   pageInfo: Pagination!
-}
-
-type MemberBenefitsRelationResponseCollection {
-  nodes: [MemberBenefits!]!
 }
 
 enum ENUM_MEMBERINFORMATION_SALUTATION {
@@ -1309,7 +1361,7 @@ input MemberInformationFiltersInput {
   former_executive_committee_club: BooleanFilterInput
   bai_viet: PostFiltersInput
   dang_ky_su_kien: EventRegistrationFiltersInput
-  uu_dai: MemberBenefitsFiltersInput
+  auto_zns_confirmation: BooleanFilterInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -1365,7 +1417,7 @@ input MemberInformationInput {
   former_executive_committee_club: Boolean
   bai_viet: [ID]
   dang_ky_su_kien: [ID]
-  uu_dai: [ID]
+  auto_zns_confirmation: Boolean
   publishedAt: DateTime
 }
 
@@ -1423,8 +1475,7 @@ type MemberInformation {
   bai_viet(filters: PostFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [Post]!
   dang_ky_su_kien_connection(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): EventRegistrationRelationResponseCollection
   dang_ky_su_kien(filters: EventRegistrationFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [EventRegistration]!
-  uu_dai_connection(filters: MemberBenefitsFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): MemberBenefitsRelationResponseCollection
-  uu_dai(filters: MemberBenefitsFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [MemberBenefits]!
+  auto_zns_confirmation: Boolean
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -1444,9 +1495,10 @@ input MembershipFeeFiltersInput {
   ma_bien_lai: StringFilterInput
   hoi_vien: MemberInformationFiltersInput
   chi_hoi: StringFilterInput
-  so_tien_da_dong: FloatFilterInput
+  so_tien_da_dong: LongFilterInput
   nam_dong_phi: StringFilterInput
   ngay_dong_phi: DateFilterInput
+  ghi_chu: StringFilterInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -1459,9 +1511,11 @@ input MembershipFeeInput {
   ma_bien_lai: String
   hoi_vien: ID
   chi_hoi: String
-  so_tien_da_dong: Float
+  so_tien_da_dong: Long
   nam_dong_phi: String
   ngay_dong_phi: Date
+  ghi_chu: String
+  hinh_anh_dinh_kem: [ID]
   publishedAt: DateTime
 }
 
@@ -1470,9 +1524,12 @@ type MembershipFee {
   ma_bien_lai: String!
   hoi_vien: MemberInformation
   chi_hoi: String
-  so_tien_da_dong: Float
+  so_tien_da_dong: Long
   nam_dong_phi: String
   ngay_dong_phi: Date
+  ghi_chu: String
+  hinh_anh_dinh_kem_connection(filters: UploadFileFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): UploadFileRelationResponseCollection
+  hinh_anh_dinh_kem(filters: UploadFileFiltersInput, pagination: PaginationArg = {}, sort: [String] = []): [UploadFile]!
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -1485,6 +1542,19 @@ type MembershipFeeEntityResponseCollection {
 
 type MembershipFeeRelationResponseCollection {
   nodes: [MembershipFee!]!
+}
+
+input MiniappConfigInput {
+  config: JSON
+  publishedAt: DateTime
+}
+
+type MiniappConfig {
+  documentId: ID!
+  config: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
 }
 
 enum ENUM_MINIAPPMANAGER_TUY_CHON {
@@ -1567,6 +1637,13 @@ enum ENUM_POST_TRANG_THAI {
   Khong_Duyet
 }
 
+enum ENUM_POST_DANH_MUC {
+  Tin_hoi_vien
+  Tin_hoat_dong_hoi
+  Dao_tao_phap_ly
+  Tin_kinh_te
+}
+
 input PostFiltersInput {
   documentId: IDFilterInput
   ma_code: StringFilterInput
@@ -1576,6 +1653,7 @@ input PostFiltersInput {
   ngay_dang: DateTimeFilterInput
   trang_thai: StringFilterInput
   hoi_vien: MemberInformationFiltersInput
+  danh_muc: StringFilterInput
   createdAt: DateTimeFilterInput
   updatedAt: DateTimeFilterInput
   publishedAt: DateTimeFilterInput
@@ -1593,6 +1671,7 @@ input PostInput {
   ngay_dang: DateTime
   trang_thai: ENUM_POST_TRANG_THAI
   hoi_vien: ID
+  danh_muc: ENUM_POST_DANH_MUC
   publishedAt: DateTime
 }
 
@@ -1606,6 +1685,7 @@ type Post {
   ngay_dang: DateTime
   trang_thai: ENUM_POST_TRANG_THAI
   hoi_vien: MemberInformation
+  danh_muc: ENUM_POST_DANH_MUC
   createdAt: DateTime
   updatedAt: DateTime
   publishedAt: DateTime
@@ -1727,7 +1807,7 @@ input SponsorFiltersInput {
   loai_tai_tro: StringFilterInput
   su_kien_tham_chieu: EventInformationFiltersInput
   hinh_thuc_tai_tro: StringFilterInput
-  so_tien_tai_tro: FloatFilterInput
+  so_tien_tai_tro: LongFilterInput
   ngay_tai_tro: DateTimeFilterInput
   nguoi_phu_trach: StringFilterInput
   trang_thai_thanh_toan: StringFilterInput
@@ -1753,7 +1833,7 @@ input SponsorInput {
   loai_tai_tro: ENUM_SPONSOR_LOAI_TAI_TRO
   su_kien_tham_chieu: ID
   hinh_thuc_tai_tro: ENUM_SPONSOR_HINH_THUC_TAI_TRO
-  so_tien_tai_tro: Float
+  so_tien_tai_tro: Long
   ngay_tai_tro: DateTime
   nguoi_phu_trach: String
   trang_thai_thanh_toan: ENUM_SPONSOR_TRANG_THAI_THANH_TOAN
@@ -1775,7 +1855,7 @@ type Sponsor {
   loai_tai_tro: ENUM_SPONSOR_LOAI_TAI_TRO
   su_kien_tham_chieu: EventInformation
   hinh_thuc_tai_tro: ENUM_SPONSOR_HINH_THUC_TAI_TRO
-  so_tien_tai_tro: Float
+  so_tien_tai_tro: Long
   ngay_tai_tro: DateTime
   nguoi_phu_trach: String
   trang_thai_thanh_toan: ENUM_SPONSOR_TRANG_THAI_THANH_TOAN
@@ -1804,11 +1884,12 @@ input TicketPricesManageFiltersInput {
   ma_loai_ve: StringFilterInput
   su_kien: EventInformationFiltersInput
   ten_hien_thi_ve: StringFilterInput
-  gia: FloatFilterInput
+  gia: LongFilterInput
   thoi_gian_ket_thuc: DateTimeFilterInput
   thoi_gian_bat_dau: DateTimeFilterInput
   chi_danh_cho_hoi_vien: BooleanFilterInput
   so_luong_ve_phat_hanh: IntFilterInput
+  so_luong_ve_xuat: IntFilterInput
   loai_ve: StringFilterInput
   ve_nhom: BooleanFilterInput
   createdAt: DateTimeFilterInput
@@ -1823,11 +1904,12 @@ input TicketPricesManageInput {
   ma_loai_ve: String
   su_kien: ID
   ten_hien_thi_ve: String
-  gia: Float
+  gia: Long
   thoi_gian_ket_thuc: DateTime
   thoi_gian_bat_dau: DateTime
   chi_danh_cho_hoi_vien: Boolean
   so_luong_ve_phat_hanh: Int
+  so_luong_ve_xuat: Int
   loai_ve: ENUM_TICKETPRICESMANAGE_LOAI_VE
   ve_nhom: Boolean
   publishedAt: DateTime
@@ -1838,11 +1920,12 @@ type TicketPricesManage {
   ma_loai_ve: String!
   su_kien: EventInformation
   ten_hien_thi_ve: String!
-  gia: Float
+  gia: Long
   thoi_gian_ket_thuc: DateTime
   thoi_gian_bat_dau: DateTime
   chi_danh_cho_hoi_vien: Boolean
   so_luong_ve_phat_hanh: Int
+  so_luong_ve_xuat: Int
   loai_ve: ENUM_TICKETPRICESMANAGE_LOAI_VE
   ve_nhom: Boolean
   createdAt: DateTime
@@ -1859,7 +1942,7 @@ type TicketPricesManageRelationResponseCollection {
   nodes: [TicketPricesManage!]!
 }
 
-union GenericMorph = UploadFile | I18NLocale | ReviewWorkflowsWorkflow | ReviewWorkflowsWorkflowStage | UsersPermissionsPermission | UsersPermissionsRole | UsersPermissionsUser | Account | Bank | Bdsd | Chapter | Company | EventApproval | EventInformation | EventRegistration | ExecutiveCommittee | MemberBenefits | MemberInformation | MembershipFee | MiniappManager | Post | PotentialMember | Sponsor | TicketPricesManage
+union GenericMorph = UploadFile | I18NLocale | ReviewWorkflowsWorkflow | ReviewWorkflowsWorkflowStage | UsersPermissionsPermission | UsersPermissionsRole | UsersPermissionsUser | Account | AppConfig | Bank | Bdsd | Chapter | Company | EventApproval | EventInformation | EventRegistration | ExecutiveCommittee | LayoutConfig | MemberBenefits | MemberInformation | MembershipFee | MiniappConfig | MiniappManager | Post | PotentialMember | Sponsor | TicketPricesManage
 
 input FileInfoInput {
   name: String
@@ -1946,6 +2029,7 @@ type Query {
   account(documentId: ID!, status: PublicationStatus = PUBLISHED): Account
   accounts_connection(filters: AccountFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): AccountEntityResponseCollection
   accounts(filters: AccountFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Account]!
+  appConfig(status: PublicationStatus = PUBLISHED): AppConfig
   bank(documentId: ID!, status: PublicationStatus = PUBLISHED): Bank
   banks_connection(filters: BankFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): BankEntityResponseCollection
   banks(filters: BankFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Bank]!
@@ -1970,6 +2054,7 @@ type Query {
   executiveCommittee(documentId: ID!, status: PublicationStatus = PUBLISHED): ExecutiveCommittee
   executiveCommittees_connection(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): ExecutiveCommitteeEntityResponseCollection
   executiveCommittees(filters: ExecutiveCommitteeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [ExecutiveCommittee]!
+  layoutConfig(status: PublicationStatus = PUBLISHED): LayoutConfig
   memberBenefits(documentId: ID!, status: PublicationStatus = PUBLISHED): MemberBenefits
   memberBenefitItems_connection(filters: MemberBenefitsFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): MemberBenefitsEntityResponseCollection
   memberBenefitItems(filters: MemberBenefitsFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [MemberBenefits]!
@@ -1979,6 +2064,7 @@ type Query {
   membershipFee(documentId: ID!, status: PublicationStatus = PUBLISHED): MembershipFee
   membershipFees_connection(filters: MembershipFeeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): MembershipFeeEntityResponseCollection
   membershipFees(filters: MembershipFeeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [MembershipFee]!
+  miniappConfig(status: PublicationStatus = PUBLISHED): MiniappConfig
   miniappManager(documentId: ID!, status: PublicationStatus = PUBLISHED): MiniappManager
   miniappManagers_connection(filters: MiniappManagerFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): MiniappManagerEntityResponseCollection
   miniappManagers(filters: MiniappManagerFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [MiniappManager]!
@@ -2007,6 +2093,8 @@ type Mutation {
   createAccount(status: PublicationStatus = PUBLISHED, data: AccountInput!): Account
   updateAccount(documentId: ID!, status: PublicationStatus = PUBLISHED, data: AccountInput!): Account
   deleteAccount(documentId: ID!): DeleteMutationResponse
+  updateAppConfig(status: PublicationStatus = PUBLISHED, data: AppConfigInput!): AppConfig
+  deleteAppConfig: DeleteMutationResponse
   createBank(status: PublicationStatus = PUBLISHED, data: BankInput!): Bank
   updateBank(documentId: ID!, status: PublicationStatus = PUBLISHED, data: BankInput!): Bank
   deleteBank(documentId: ID!): DeleteMutationResponse
@@ -2031,6 +2119,8 @@ type Mutation {
   createExecutiveCommittee(status: PublicationStatus = PUBLISHED, data: ExecutiveCommitteeInput!): ExecutiveCommittee
   updateExecutiveCommittee(documentId: ID!, status: PublicationStatus = PUBLISHED, data: ExecutiveCommitteeInput!): ExecutiveCommittee
   deleteExecutiveCommittee(documentId: ID!): DeleteMutationResponse
+  updateLayoutConfig(status: PublicationStatus = PUBLISHED, data: LayoutConfigInput!): LayoutConfig
+  deleteLayoutConfig: DeleteMutationResponse
   createMemberBenefits(status: PublicationStatus = PUBLISHED, data: MemberBenefitsInput!): MemberBenefits
   updateMemberBenefits(documentId: ID!, status: PublicationStatus = PUBLISHED, data: MemberBenefitsInput!): MemberBenefits
   deleteMemberBenefits(documentId: ID!): DeleteMutationResponse
@@ -2040,6 +2130,8 @@ type Mutation {
   createMembershipFee(status: PublicationStatus = PUBLISHED, data: MembershipFeeInput!): MembershipFee
   updateMembershipFee(documentId: ID!, status: PublicationStatus = PUBLISHED, data: MembershipFeeInput!): MembershipFee
   deleteMembershipFee(documentId: ID!): DeleteMutationResponse
+  updateMiniappConfig(status: PublicationStatus = PUBLISHED, data: MiniappConfigInput!): MiniappConfig
+  deleteMiniappConfig: DeleteMutationResponse
   createMiniappManager(status: PublicationStatus = PUBLISHED, data: MiniappManagerInput!): MiniappManager
   updateMiniappManager(documentId: ID!, status: PublicationStatus = PUBLISHED, data: MiniappManagerInput!): MiniappManager
   deleteMiniappManager(documentId: ID!): DeleteMutationResponse

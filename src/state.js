@@ -1,5 +1,7 @@
 import { atom, selector, selectorFamily } from "recoil";
 import APIServices from "./services/api-service";
+import { IMAGE_DOMAINS } from "./utils/imageHelper";
+import ZaloServices from "./services/zalo-service";
 
 export const displayNameState = atom({
   key: "displayName",
@@ -43,12 +45,96 @@ export const listEventState = selector({
 export const listMembershipState = selector({
   key: "ListMembershipState",
   get: async ({ get }) => {
-    const response = await APIServices.getMemberships(0, 20);
-    let memberships =
-      response.data && response.data.memberships
-        ? response.data.memberships
-        : [];
-    return memberships;
+    try {
+      console.log('listMembershipState: Fetching membership fees via GraphQL');
+      const response = await APIServices.getMemberships(0, 20);
+
+      // Handle both old and new response formats
+      let memberships = [];
+      if (response.data && response.data.memberships) {
+        memberships = response.data.memberships;
+      } else if (response.data && response.data.membershipFees) {
+        // Direct GraphQL response format
+        memberships = response.data.membershipFees.map(fee => ({
+          id: fee.documentId,
+          documentId: fee.documentId,
+          ma_bien_lai: fee.ma_bien_lai,
+          member: fee.hoi_vien,
+          chi_hoi: fee.chi_hoi,
+          so_tien_da_dong: fee.so_tien_da_dong,
+          nam_dong_phi: fee.nam_dong_phi,
+          ngay_dong_phi: fee.ngay_dong_phi,
+          createdAt: fee.createdAt,
+          updatedAt: fee.updatedAt,
+          publishedAt: fee.publishedAt,
+          // Legacy fields for backward compatibility
+          customFields: {
+            "Tên Công Ty": fee.hoi_vien?.company || "YBA HCM",
+            "Tên Ưu Đãi": `Hội phí ${fee.nam_dong_phi}`,
+            "Mô tả": `Số tiền: ${fee.so_tien_da_dong?.toLocaleString('vi-VN')} VNĐ`,
+            "Nội Dung Ưu Đãi": {
+              html: `<p>Hội phí năm ${fee.nam_dong_phi}</p><p>Số tiền đã đóng: ${fee.so_tien_da_dong?.toLocaleString('vi-VN')} VNĐ</p><p>Ngày đóng: ${fee.ngay_dong_phi}</p>`
+            },
+            "Banner": [{
+              url: `${IMAGE_DOMAINS.API}/public/yba/membership-banner.png`
+            }],
+            "Hình Ảnh": [{
+              url: fee.hoi_vien?.member_image?.url || `${IMAGE_DOMAINS.API}/public/yba/membership-icon.png`
+            }],
+            "Ưu tiên hiển thị": false,
+            "Tạo lúc": fee.createdAt
+          }
+        }));
+      }
+
+      console.log('listMembershipState: Fetched memberships:', memberships.length);
+      return memberships;
+    } catch (error) {
+      console.error('listMembershipState error:', error);
+      return [];
+    }
+  },
+});
+
+// New selector for membership fees using GraphQL
+export const membershipFeesState = selector({
+  key: "MembershipFeesState",
+  get: async ({ get }) => {
+    try {
+      console.log('membershipFeesState: Fetching membership fees via GraphQL');
+      const response = await APIServices.getMembershipFees({}, { start: 0, limit: 50 });
+
+      if (response.data?.membershipFees) {
+        return response.data.membershipFees;
+      } else {
+        return [];
+      }
+    } catch (error) {
+      console.error('membershipFeesState error:', error);
+      return [];
+    }
+  },
+});
+
+// Selector for member-specific membership fees
+export const memberMembershipFeesState = selectorFamily({
+  key: "MemberMembershipFeesState",
+  get: (memberId) => async ({ get }) => {
+    try {
+      if (!memberId) return [];
+
+      console.log('memberMembershipFeesState: Fetching fees for member:', memberId);
+      const response = await APIServices.getMemberMembershipFees(memberId);
+
+      if (response.data?.membershipFees) {
+        return response.data.membershipFees;
+      } else {
+        return [];
+      }
+    } catch (error) {
+      console.error('memberMembershipFeesState error:', error);
+      return [];
+    }
   },
 });
 
@@ -126,8 +212,9 @@ export const postInfoState = selectorFamily({
   get:
     (id) =>
     async ({ get }) => {
-      let posts = get(listPostsState);
-      return posts.posts.find((v) => v.documentId == id);
+      const response = await APIServices.getPostInfo(id);
+      // GraphQL response structure: { data: { post: {...} } }
+      return response.data?.post || null;
     },
 });
 
@@ -155,17 +242,45 @@ export const listTicketState = selector({
   key: "ListTicketState",
   get: async ({ get }) => {
     const refreshValue = get(refreshTrigger);
-    const zaloProfile = get(userZaloProfileState);
 
-    // Don't call API if user is guest (no Zalo ID)
-    if (!zaloProfile?.id) {
-      console.log("listTicketState: No Zalo ID, returning empty array");
+    // ===== NEW: Get user data from AuthContext states =====
+    const userInfo = get(userZaloProfileState); // This will be updated by AuthContext
+    const memberInfo = get(memberInfoState);
+    const userType = get(userTypeState);
+
+    // Determine user identifiers from AuthContext data
+    const isMember = userType === 'member';
+    const zaloId = userInfo?.id || null;
+    const memberId = memberInfo?.documentId || null;
+
+    console.log("listTicketState: Using AuthContext data", {
+      isMember,
+      memberId,
+      zaloId,
+      userType,
+      hasUserInfo: !!userInfo,
+      hasMemberInfo: !!memberInfo,
+      refreshValue
+    });
+
+    // Don't call API if user has no valid identifier
+    if (!zaloId && !memberId) {
+      console.log("listTicketState: No valid identifier, returning empty array");
       return [];
     }
 
     try {
-      const response = await APIServices.getMyTickets(zaloProfile.id);
-      console.log("response ticket", response?.data);
+      // Call getMyTickets with zaloId and memberId from AuthContext
+      const response = await APIServices.getMyTickets(zaloId, memberId);
+
+      console.log("listTicketState: API response", {
+        error: response?.error,
+        ticketCount: response?.data?.length || 0,
+        message: response?.message,
+        usedZaloId: zaloId,
+        usedMemberId: memberId
+      });
+
       return response?.data || [];
     } catch (error) {
       console.error("listTicketState error:", error);
@@ -179,14 +294,29 @@ export const listEventTicketState = selector({
   get: async ({ get }) => {
     const zaloProfile = get(userZaloProfileState);
 
-    // Don't call API if user is guest (no Zalo ID)
-    if (!zaloProfile?.id) {
-      console.log("listEventTicketState: No Zalo ID, returning empty array");
+    // Get auth info to check if user is member
+    const authInfo = APIServices.getAuthInfo();
+    const isMember = authInfo?.isMember || false;
+    const memberId = authInfo?.memberId || null;
+
+    console.log("listEventTicketState: User info", {
+      isMember,
+      memberId,
+      zaloId: zaloProfile?.id
+    });
+
+    // Don't call API if user has no valid identifier
+    if (!zaloProfile?.id && !memberId) {
+      console.log("listEventTicketState: No valid identifier, returning empty array");
       return [];
     }
 
     try {
-      const response = await APIServices.getMyTickets(zaloProfile.id);
+      // Use member ID if user is member, otherwise use Zalo ID
+      const response = await APIServices.getMyTickets(
+        zaloProfile?.id,
+        isMember ? memberId : null
+      );
       return response?.data || [];
     } catch (error) {
       console.error("listEventTicketState error:", error);
@@ -209,32 +339,123 @@ export const zaloProfileRefreshTrigger = atom({
   default: 0,
 });
 
+// ===== NEW AUTH STATES =====
+export const memberInfoState = atom({
+  key: "memberInfoState",
+  default: null,
+});
+
+export const userTypeState = atom({
+  key: "userTypeState",
+  default: "guest", // "guest" or "member"
+});
+
 export const userZaloProfileState = selector({
   key: "UserZaloProfileState",
   get: async ({ get }) => {
     get(zaloProfileRefreshTrigger);
     try {
-      const response = await APIServices.getAuthInfo();
-      // Always return an object with default values for guest users
-      return response || {
-        id: null,
-        info: null,
-        isMember: false,
-        phone: null,
-        email: null,
-        jwt: null
+      console.log('userZaloProfileState: Getting complete Zalo user info');
+
+      // ✅ REFACTORED: Use API service to get Zalo user info with direct SDK import
+      const zaloInfoResult = await APIServices.getZaloUserInfo();
+      const zaloUserInfo = zaloInfoResult.error === 0 ? zaloInfoResult.data : null;
+
+      console.log('userZaloProfileState: Complete Zalo user info received:', {
+        hasId: !!zaloUserInfo?.id,
+        hasName: !!zaloUserInfo?.name,
+        hasAvatar: !!zaloUserInfo?.avatar,
+        source: zaloInfoResult.source || 'none',
+        id: zaloUserInfo?.id,
+        name: zaloUserInfo?.name
+      });
+
+      // Get auth info for member status
+      const authInfo = APIServices.getAuthInfo();
+
+      // ✅ COMBINE COMPLETE ZALO INFO WITH AUTH INFO
+      const combinedProfile = {
+        // Complete Zalo information
+        id: zaloUserInfo?.id || null,
+        name: zaloUserInfo?.name || null,
+        avatar: zaloUserInfo?.avatar || null,
+
+        // Auth information
+        isMember: authInfo?.isMember || false,
+        memberId: authInfo?.memberId || null,
+        phone: authInfo?.phone || null,
+        email: authInfo?.email || null,
+        jwt: authInfo?.jwt || null,
+
+        // Complete info object for all actions
+        info: zaloUserInfo || null,
+
+        // Source tracking for debugging
+        zaloInfoSource: zaloInfoResult.source || 'none'
       };
+
+      console.log('userZaloProfileState: Complete combined profile:', {
+        zaloId: combinedProfile.id,
+        zaloName: combinedProfile.name,
+        hasAvatar: !!combinedProfile.avatar,
+        isMember: combinedProfile.isMember,
+        memberId: combinedProfile.memberId,
+        hasUserInfo: !!combinedProfile.info,
+        source: combinedProfile.zaloInfoSource
+      });
+
+      return combinedProfile;
+
     } catch (error) {
       console.error('userZaloProfileState error:', error);
-      // Return default guest profile on error
-      return {
-        id: null,
-        info: null,
-        isMember: false,
-        phone: null,
-        email: null,
-        jwt: null
-      };
+
+      // Try to get auth info and stored Zalo info as fallback
+      try {
+        const authInfo = APIServices.getAuthInfo();
+
+        // ✅ TRY TO GET STORED ZALO INFO as last resort
+        const storedZaloResult = APIServices.loadZaloUserInfo();
+        const storedZaloInfo = storedZaloResult.error === 0 ? storedZaloResult.data : null;
+
+        console.log('userZaloProfileState: Using fallback data:', {
+          hasStoredZalo: !!storedZaloInfo,
+          storedZaloId: storedZaloInfo?.id,
+          hasAuth: !!authInfo
+        });
+
+        return {
+          // Stored Zalo information (if available)
+          id: storedZaloInfo?.id || null,
+          name: storedZaloInfo?.name || null,
+          avatar: storedZaloInfo?.avatar || null,
+          info: storedZaloInfo || null,
+
+          // Auth information
+          isMember: authInfo?.isMember || false,
+          memberId: authInfo?.memberId || null,
+          phone: authInfo?.phone || null,
+          email: authInfo?.email || null,
+          jwt: authInfo?.jwt || null,
+
+          // Source tracking
+          zaloInfoSource: storedZaloInfo ? 'stored-fallback' : 'none'
+        };
+      } catch (authError) {
+        console.error('userZaloProfileState: Complete fallback failed:', authError);
+        // Return default guest profile on complete failure
+        return {
+          id: null,
+          name: null,
+          avatar: null,
+          info: null,
+          isMember: false,
+          memberId: null,
+          phone: null,
+          email: null,
+          jwt: null,
+          zaloInfoSource: 'failed'
+        };
+      }
     }
   },
 });
@@ -500,6 +721,23 @@ export const phoneNumberRefreshTrigger = atom({
   default: 0,
 });
 
+// Simplified member status selector for quick checks
+export const memberStatusState = selector({
+  key: "MemberStatusState",
+  get: async ({ get }) => {
+    get(phoneNumberRefreshTrigger);
+
+    const authInfo = APIServices.getAuthInfo();
+
+    return {
+      isMember: authInfo.isMember || false,
+      memberId: authInfo.memberId || null,
+      hasJWT: !!authInfo.jwt
+    };
+  },
+});
+
+// Optimized user profile selector - only fetches when needed
 export const userByPhoneNumberState = selector({
   key: "UserByPhoneNumberState",
   get: async ({ get }) => {
@@ -507,28 +745,31 @@ export const userByPhoneNumberState = selector({
     get(phoneNumberRefreshTrigger);
 
     try {
-      // Get auth info to check if user has member data
-      const authInfo = await APIServices.getAuthInfo();
-      console.log('userByPhoneNumberState: authInfo:', authInfo);
+      // Get simplified auth info
+      const authInfo = APIServices.getAuthInfo();
+      console.log('userByPhoneNumberState: Simplified auth check:', {
+        isMember: authInfo.isMember,
+        memberId: authInfo.memberId,
+        hasJWT: !!authInfo.jwt
+      });
 
-      // If user is a member and we have member data, return it
-      if (authInfo?.isMember && authInfo?.memberData) {
-        console.log('userByPhoneNumberState: Returning cached member data:', authInfo.memberData);
-        return authInfo.memberData;
-      }
+      // Only fetch member data if user is a verified member
+      if (authInfo?.isMember && authInfo?.memberId) {
+        console.log('userByPhoneNumberState: Fetching member data for verified member:', authInfo.memberId);
 
-      // If user has member ID but no cached member data, fetch it
-      if (authInfo?.memberId) {
-        console.log('userByPhoneNumberState: Fetching member data by ID:', authInfo.memberId);
         const memberResponse = await APIServices.getMember(authInfo.memberId);
         console.log('userByPhoneNumberState: Member response:', memberResponse);
+
         if (memberResponse.error === 0 && memberResponse.member) {
+          console.log('userByPhoneNumberState: Successfully fetched member profile');
           return memberResponse.member;
+        } else {
+          console.warn('userByPhoneNumberState: Failed to fetch member data:', memberResponse);
         }
       }
 
       // No member data available - user is guest
-      console.log('userByPhoneNumberState: No member data - user is guest');
+      console.log('userByPhoneNumberState: Returning null (guest user or no member data)');
       return null;
 
     } catch (error) {

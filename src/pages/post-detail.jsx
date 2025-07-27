@@ -3,6 +3,7 @@ import { Page, Icon, useNavigate } from "zmp-ui"
 import { useParams } from "react-router-dom"
 import { openShareSheet } from "zmp-sdk/apis"
 import Helper from "../utils/helper"
+import { getPostImageUrl, getImageProps, getEmptyStateIcon } from "../utils/imageHelper"
 import { postInfoState } from "../state"
 import { useRecoilValue } from "recoil"
 import IconShareBlog from "../components/icons/share-icon-blog"
@@ -21,7 +22,7 @@ const PostDetailPage = () => {
   }
 
   const shareLink = `posts/detail/${post?.documentId}`
-
+  
   const sharePost = async () => {
     try {
       const title = Helper.truncateText(post?.tieu_de, 100)
@@ -29,11 +30,8 @@ const PostDetailPage = () => {
         type: "zmp_deep_link",
         data: {
           title: title,
-          description: `${title}. Hội doanh nhân trẻ TP.HCM (YBA HCM)`,
-          thumbnail:
-            (post?.customFields["Ảnh minh hoạ"] &&
-              post?.customFields["Ảnh minh hoạ"][0]?.url) ||
-            "https://api.ybahcm.vn/public/yba/yba-01.png",
+          description: `${post?.tieu_de}. Hội doanh nhân trẻ TP.HCM (YBA HCM)`,
+          thumbnail: getImageProps(post?.hinh_anh_minh_hoa?.url).src || "https://api.ybahcm.vn/public/yba/yba-01.png",
           path: shareLink,
         },
       })
@@ -48,7 +46,7 @@ const PostDetailPage = () => {
         <div className="mx-auto text-center mt-10 mb-44">
           <img
             className="w-24 h-auto block m-auto"
-            src="https://api.ybahcm.vn/public/yba/icon-empty.png"
+            {...getImageProps(post?.hinh_anh_minh_hoa?.url)}
           />
           <p className="text-normal text-[#6F7071] my-2 px-16">
             Không tìm thấy bài viết hoặc bài viết đã bị xóa
@@ -62,10 +60,8 @@ const PostDetailPage = () => {
       <div className="relative -mx-4 -mt-2.5">
         <img
           className="w-screen"
-          src={
-            post.hinh_anh_minh_hoa?.url ||
-            "https://api.ybahcm.vn/public/yba/yba-01.png"
-          }
+          {...getImageProps(post.hinh_anh_minh_hoa?.url)}
+          alt={post.tieu_de || "Post image"}
         />
       </div>
       <div className="py-4 grid gap-2.5">
@@ -108,7 +104,7 @@ const PostDetailPage = () => {
             Quay lại mục tin tức
           </button>
           <button
-            className="bg-[#F4F4F5] flex space-x-2 items-center justify-center w-1/2 text-black font-bold h-10 rounded-lg mx-auto block"
+            className="bg-[#F4F4F5] flex space-x-2 items-center justify-center w-1/2 text-black font-bold h-10 rounded-lg mx-auto"
             onClick={sharePost}
           >
             <span>Chia sẻ</span>

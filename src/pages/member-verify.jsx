@@ -1,40 +1,140 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Page, useNavigate, Icon, Box, Modal } from "zmp-ui";
-import { useRecoilValue, useSetRecoilState } from "recoil";
-import {
-  refreshTrigger,
-  userByPhoneNumberState,
-  userZaloProfileState,
-  zaloProfileRefreshTrigger,
-  phoneNumberRefreshTrigger, // Add this import
-} from "../state";
 import APIService from "../services/api-service";
 import FaceIcon from "../components/icons/face-icon";
 import VerifySuccessIcon from "../components/icons/verify-success-icon";
 import MemberVerifyLoading from "../components/skeletons/member-verify-loading";
+import { useAuth } from "../contexts/AuthContext";
 
 const MemberVerifyPage = () => {
   const navigate = useNavigate();
-  const profile = useRecoilValue(userByPhoneNumberState);
-  const zaloProfile = useRecoilValue(userZaloProfileState);
+
+  // ===== FIXED: Use complete AuthContext instead of Recoil states =====
+  const {
+    userInfo,           // Replaces zaloProfile
+    member,             // Member data
+    isMember,           // Member status
+    isAuthenticated,
+    isLoading: authLoading,
+    userType,
+    createAccount,
+    getMemberInfoById,
+    getAllZaloDataWithPermissions,
+    activateGuestAuthentication,
+    checkZaloPermissions,
+    updateAccount,
+    getAccountByZaloId  // Added for account update functionality
+  } = useAuth();
+
   const [isLoading, setIsLoading] = useState(true);
-  const refresh = useSetRecoilState(refreshTrigger);
-  const refreshZaloProfile = useSetRecoilState(zaloProfileRefreshTrigger);
-  const refreshPhoneNumber = useSetRecoilState(phoneNumberRefreshTrigger);
   const [isProcessing, setIsProcessing] = useState(false);
   const [phoneInvalid, setPhoneInvalid] = useState(false);
   const [emailInvalid, setEmailInvalid] = useState(false);
   const [popupVerifySuccess, setPopupVerifySuccess] = useState(false);
+  const [isVerifiedMember, setIsVerifiedMember] = useState(false); // Track if user is member or guest
+
+  // ===== FIXED: Initialize profile from AuthContext data =====
   const [currentProfile, setCurrentProfile] = useState({
-    phoneNumber: profile?.phone || "",
-    email: profile?.email || "",
+    phoneNumber: userInfo?.phoneNumber || member?.phone_number_1 || "",
+    email: member?.email_1 || "",
   });
 
-  const [popupError, setPopupError] = useState(false);
-  const [popupErrorData, setPopupErrorData] = useState({
-    title: "",
-    description: "",
-  });
+  // ===== FIXED: useEffect to reload component when member data changes =====
+  // useEffect(() => {
+  //   console.log('MemberVerify: Member data changed, updating profile form', {
+  //     hasUserInfo: !!userInfo,
+  //     hasMember: !!member,
+  //     isMember,
+  //     userType,
+  //     memberName: member?.full_name,
+  //     memberEmail: member?.email_1,
+  //     memberPhone: member?.phone_number_1
+  //   });
+  
+  //   // Update profile form when member data changes
+  //   setCurrentProfile(prev => ({
+    //     phoneNumber: userInfo?.phoneNumber || member?.phone_number_1 || prev.phoneNumber || "",
+    //     email: member?.email_1 || prev.email || "",
+    //   }));
+    
+    //   // Reset verification states when member data changes
+    //   setIsVerifiedMember(isMember);
+    //   setPopupVerifySuccess(false);
+    //   setPopupError(false);
+    
+    // }, [userInfo, member, isMember, userType]); // Reload when member data changes
+    
+    const [popupError, setPopupError] = useState(false);
+    const [popupErrorData, setPopupErrorData] = useState({
+      title: "",
+      description: "",
+    });
+    
+    // ===== FIXED: Add useEffect to check permissions using AuthContext functions =====
+    useEffect(() => {
+      const checkPermissionsAndInitialize = async () => {
+        // console.log('MemberVerify: Checking permissions and initializing', {
+        //   isAuthenticated,
+        //   hasUserInfo: !!userInfo,
+        //   hasMember: !!member,
+        //   isMember,
+        //   authLoading
+        // });
+  
+        try {
+          // If still loading authentication, wait
+          if (authLoading) {
+            console.log('MemberVerify: Authentication still loading, waiting...');
+            return;
+          }
+  
+          // Check if we have basic authentication
+          if (!isAuthenticated) {
+            console.log('MemberVerify: Not authenticated, activating guest authentication');
+            const result = await activateGuestAuthentication();
+            if (!result.success) {
+              console.log('MemberVerify: Failed to activate guest authentication:', result.error);
+              navigate(-1);
+            }
+          }
+  
+          if (member) {
+            navigate(-1);
+          }
+  
+          // Check Zalo permissions
+          // const hasPermissions = await checkZaloPermissions();
+          // console.log('MemberVerify: Zalo permissions check result:', hasPermissions);
+  
+          // If we don't have user info, try to get it
+          // if (!userInfo?.id) {
+          //   console.log('MemberVerify: No user info available, getting user data with permissions');
+          //   const result = await getAllZaloDataWithPermissions();
+  
+          //   if (!result.success) {
+          //     console.log('MemberVerify: Failed to get user data:', result.message);
+          //     // Don't show error immediately, let user try verification
+          //   } else {
+          //     console.log('MemberVerify: Successfully got user data');
+          //   }
+          // }
+  
+          // // Update profile form with latest data
+          // setCurrentProfile(prev => ({
+          //   phoneNumber: prev.phoneNumber || userInfo?.phoneNumber || member?.phone_number_1 || "",
+          //   email: prev.email || member?.email_1 || "",
+          // }));
+  
+          setIsLoading(false);
+        } catch (error) {
+          navigate(-1);
+          console.error('MemberVerify: Error during initialization:', error);
+          setIsLoading(false);
+        }
+      };
+
+    checkPermissionsAndInitialize();
+  }, [authLoading, userInfo, checkZaloPermissions]);
 
   const goToRegister = () => {
     navigate("/members/register");
@@ -74,79 +174,199 @@ const MemberVerifyPage = () => {
   };
 
   const save = async () => {
-    console.log("save/currentProfile", currentProfile);
-    if (verifyPhone(currentProfile.phoneNumber)) {
-      setPhoneInvalid(true);
-      return;
-    }
-    if (verifyEmail(currentProfile.email)) {
-      setEmailInvalid(true);
-      return;
-    }
+    console.log("Member verification: Starting verification process", {
+      currentProfile,
+      hasUserInfo: !!userInfo,
+      hasMember: !!member,
+      isMember,
+      isAuthenticated
+    });
 
-    setIsProcessing(true);
     try {
-      console.log("save/zaloProfile", zaloProfile);
+      setIsProcessing(true);
 
-      const result = await APIService.verifyMember(
-        currentProfile,
-        zaloProfile?.id,
-        zaloProfile?.zaloIDByOA,
-        profile?.customFields["Họ và tên"] || zaloProfile?.name || "no name"
-      );
-      console.log("save/verifyMember", result);
+      // ===== FIXED: Use AuthContext data and functions =====
+      console.log("Member verification: Using AuthContext for user info: ", userInfo);
 
-      if (result.message === "Success") {
-        console.log("Member verification successful:", result.data);
+      let zaloUserInfo = userInfo; // Use existing userInfo from AuthContext
 
-        // New verify member API already handles:
-        // 1. JWT authentication and storage
-        // 2. Member data storage in authInfo
-        // 3. Account linking (if available in response)
-        // No need to create accounts or save JSON manually
+      // If no userInfo available, get it using AuthContext function
+      if (!zaloUserInfo?.id) {
+        console.log("Member verification: No userInfo available, getting user data with permissions");
 
-        // Refresh state to reflect the new member status
-        refresh((prev) => prev + 1);
-        refreshZaloProfile((prev) => prev + 1);
-        refreshPhoneNumber((prev) => prev + 1);
+        const zaloDataResult = await getAllZaloDataWithPermissions();
 
-        // Small delay to ensure state updates
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Show success popup
-        setPopupVerifySuccess(true);
-
-        // Check if user is a member or guest
-        if (result.data.isGuest || result.data.id === null) {
-          console.log("User verified as guest - no member account found");
-        } else {
-          console.log("User verified as member:", {
-            memberId: result.data.id,
-            memberName: result.data.member?.full_name,
-            chapter: result.data.member?.chapter?.ten_chi_hoi,
-            memberType: result.data.member?.member_type
+        if (!zaloDataResult.success) {
+          console.log("Member verification: Failed to get Zalo data:", zaloDataResult.message);
+          setPopupErrorData({
+            title: "Lỗi quyền truy cập",
+            description: zaloDataResult.message || "Không thể lấy thông tin từ Zalo. Vui lòng cấp quyền và thử lại."
           });
+          setPopupError(true);
+          setIsProcessing(false);
+          return;
         }
-      } else {
+
+        zaloUserInfo = zaloDataResult.userInfo;
+      }
+
+      console.log("Member verification: Got userInfo:", {
+        hasId: !!zaloUserInfo?.id,
+        hasName: !!zaloUserInfo?.name,
+        hasPhone: !!zaloUserInfo?.phoneNumber
+      });
+
+      if (!zaloUserInfo?.id) {
+        console.log("Member verification: No Zalo ID available");
         setPopupErrorData({
-          title: result?.alert?.title || "Có lỗi xảy ra",
-          description:
-            result?.alert?.message || "Vui lòng lên hệ với YBA để được hỗ trợ",
+          title: "Thiếu thông tin Zalo",
+          description: "Không thể lấy ID Zalo. Vui lòng đảm bảo bạn đã đăng nhập Zalo."
         });
         setPopupError(true);
-        refreshZaloProfile((prev) => prev + 1);
-        refreshPhoneNumber((prev) => prev + 1);
+        setIsProcessing(false);
         return;
       }
+
+      // Validate form data
+      if (verifyPhone(currentProfile.phoneNumber)) {
+        setPhoneInvalid(true);
+        setIsProcessing(false);
+        return;
+      }
+      if (verifyEmail(currentProfile.email)) {
+        setEmailInvalid(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log("Member verification: Proceeding with verification", {
+        phoneNumber: currentProfile.phoneNumber,
+        email: currentProfile.email,
+        zaloId: zaloUserInfo.id
+      });
+
+      // ===== NEW FLOW: Search member with phoneNumber and email from form =====
+      console.log("Member verification: Searching member by phoneNumber and email from form");
+
+      const memberResponse = await APIService.getMemberByPhoneAndEmail(
+        currentProfile.phoneNumber,
+        currentProfile.email
+      );
+
+      console.log("Member verification: Member search result:", memberResponse);
+
+      if (memberResponse.error === 0 && memberResponse.data && !isAuthenticated) {
+        // Member found - save member and create account
+        const memberData = memberResponse.data;
+        console.log("Member verification: Member found:", {
+          documentId: memberData.documentId,
+          fullName: memberData.full_name,
+          hasChapter: !!memberData.chapter
+        });
+
+        // Save member info to AuthContext
+        console.log("Member verification: Saving member info to AuthContext");
+        await getMemberInfoById(memberData.documentId);
+
+        // Create account with userInfo and phoneNumber, "hoi_vien" is member search id
+        console.log("Member verification: Creating account with userInfo and member ID");
+
+        const accountData = {
+          ma_zalo: zaloUserInfo.id,
+          ten_dang_nhap: zaloUserInfo.name || memberData.full_name || `User_${zaloUserInfo.id}`,
+          loai_tai_khoan: "Hoi_vien",
+          trang_thai: "Kich_hoat",
+          so_dien_thoai_zalo: zaloUserInfo.phoneNumber || currentProfile.phoneNumber || zaloUserInfo.id,
+          chi_hoi: memberData.chapter?.ten_chi_hoi || "",
+          hoi_vien: memberData.documentId // Member search ID
+        };
+
+        const accountResult = await createAccount(accountData);
+
+        if (accountResult) {
+          console.log("Member verification: Account created successfully:", accountResult.documentId);
+
+          // Set as verified member
+          setIsVerifiedMember(true);
+
+          // ===== FIXED: Removed Recoil refresh calls, AuthContext handles updates automatically =====
+
+          // Show success popup
+          setPopupVerifySuccess(true);
+
+        } else {
+          throw new Error("Failed to create account");
+        }
+
+      } else if (memberResponse.error === 0 && memberResponse.data && isAuthenticated) {
+        // ===== FIXED: Member found but user already has account - update existing account =====
+        const memberData = memberResponse.data;
+        console.log("Member verification: Member found with existing account, updating account with member info:", {
+          documentId: memberData.documentId,
+          fullName: memberData.full_name,
+          hasChapter: !!memberData.chapter,
+          currentAccountExists: isAuthenticated
+        });
+
+        // ===== FIXED: Update existing account with member information =====
+        console.log("Member verification: Updating existing account with member ID");
+
+        // Get current account from AuthContext
+        const currentAccount = await getAccountByZaloId(zaloUserInfo.id);
+
+        if (currentAccount?.documentId) {
+          // Update account with member information
+          const updateAccountData = {
+            hoi_vien: memberData.documentId, // Link member to account
+            loai_tai_khoan: "Hoi_vien",      // Update account type to member
+            chi_hoi: memberData.chapter?.ten_chi_hoi || currentAccount.chi_hoi || ""
+          };
+
+          console.log("Member verification: Updating account with member data:", updateAccountData);
+
+          // Call API to update account
+          const updateResult = await updateAccount(currentAccount.documentId, updateAccountData);
+
+          if (updateResult.error === 0) {
+            console.log("Member verification: Account updated successfully with member info");
+            // Save member info to AuthContext
+            console.log("Member verification: Saving member info to AuthContext");
+            await getMemberInfoById(memberData.documentId);
+
+            // Set as verified member
+            setIsVerifiedMember(true);
+
+            // Show success popup
+            setPopupVerifySuccess(true);
+          } else {
+            throw new Error("Failed to update account with member information");
+          }
+        } else {
+          throw new Error("Current account not found for update");
+        }
+
+      } else {
+        // No member found - treat as guest
+        console.log("Member verification: No member found with provided phone and email - treating as guest");
+
+        setIsVerifiedMember(false);
+        setPopupErrorData({
+          title: "Không tìm thấy hội viên",
+          description: "Không thể tìm thấy thông tin hội viên với số điện thoại và email đã cung cấp. Vui lòng kiểm tra lại thông tin hoặc liên hệ YBA để được hỗ trợ."
+        });
+
+        // Show success popup for guest
+        setPopupError(true);
+      }
     } catch (error) {
-      console.log("error in verify", error);
+      console.error("Member verification: Error during verification process:", error);
       setPopupErrorData({
-        title: "Có lỗi xảy ra!!!",
-        description: "Vui lòng lên hệ với YBA để được hỗ trợ",
+        title: "Xác thực thất bại",
+        description: "Không thể xác thực thông tin hội viên. Vui lòng kiểm tra lại thông tin hoặc liên hệ YBA để được hỗ trợ.",
       });
       setPopupError(true);
-      refreshZaloProfile((prev) => prev + 1);
-      refreshPhoneNumber((prev) => prev + 1);
+
+      // ===== FIXED: Removed Recoil refresh calls, AuthContext handles updates automatically =====
     } finally {
       setIsProcessing(false);
     }
@@ -154,62 +374,62 @@ const MemberVerifyPage = () => {
 
   const verifySuccess = async () => {
     try {
-      console.log("verifySuccess: Processing successful verification");
+      console.log("verifySuccess: Processing successful verification using AuthContext");
 
-      // Get the current auth info to check if user is a member
-      const authInfo = await APIService.getAuthInfo();
-      console.log("verifySuccess: Current auth info:", {
-        hasJWT: !!authInfo?.jwt,
-        isMember: authInfo?.isMember,
-        memberId: authInfo?.memberId,
-        hasComprehensiveData: !!authInfo?.memberData
+      // ===== FIXED: Use AuthContext data instead of manual API calls =====
+      console.log("verifySuccess: Current auth status:", {
+        isAuthenticated,
+        isMember,
+        hasUserInfo: !!userInfo,
+        hasMember: !!member,
+        userType,
+        memberId: member?.documentId
       });
 
-      if (authInfo?.isMember && authInfo?.memberId) {
+      if (isMember && member?.documentId) {
         console.log("verifySuccess: Member verified, processing profile data");
 
-        // Ensure we have the most up-to-date comprehensive member data
-        let memberData = authInfo.memberData;
+        // ===== FIXED: Use AuthContext member data directly =====
+        let memberData = member;
 
-        // If we don't have comprehensive data cached, fetch it using documentId
-        if (!memberData || !memberData.chapter) {
+        // If we need more comprehensive data, fetch it using AuthContext function
+        if (!memberData.chi_hoi || !memberData.ban_chap_hanh) {
           try {
-            console.log("verifySuccess: Fetching comprehensive member data using documentId:", authInfo.memberId);
-            const memberResponse = await APIService.getMember(authInfo.memberId);
-            if (memberResponse.error === 0 && memberResponse.member) {
-              memberData = memberResponse.member;
+            console.log("verifySuccess: Fetching comprehensive member data using AuthContext:", member.documentId);
+            await getMemberInfoById(member.documentId);
 
-              // Update authInfo with comprehensive data
-              authInfo.memberData = memberData;
+            // The AuthContext will automatically update the member data
+            memberData = member; // Use updated member data from AuthContext
 
-              console.log("verifySuccess: Updated member data with comprehensive info:", {
-                hasChapter: !!memberData.chapter,
-                hasAccounts: !!memberData.tai_khoan?.length,
-                memberType: memberData.member_type,
-                status: memberData.status
-              });
-            }
+            console.log("verifySuccess: Updated member data with comprehensive info:", {
+              hasChapter: !!memberData.chi_hoi,
+              hasExecutiveCommittee: !!memberData.ban_chap_hanh,
+              hasCompany: !!memberData.company,
+              memberType: memberData.member_type,
+              status: memberData.trang_thai_hoi_vien
+            });
           } catch (error) {
             console.error("verifySuccess: Error fetching comprehensive member data:", error);
             // Continue with existing data
           }
         }
 
-        // Update member with Zalo information if available and different
+        // ===== FIXED: Update member with Zalo information using AuthContext data =====
         const memberUpdateData = {};
-        if (zaloProfile?.id && memberData?.zalo !== zaloProfile.id) {
-          memberUpdateData.zalo = zaloProfile.id;
+        if (userInfo?.id && memberData?.zalo !== userInfo.id) {
+          memberUpdateData.zalo = userInfo.id;
         }
 
         // Save profile updates if needed
         if (Object.keys(memberUpdateData).length > 0) {
           try {
             console.log("verifySuccess: Updating member profile with Zalo info:", memberUpdateData);
-            const updateResponse = await APIService.updateRegisterMember(authInfo.memberId, memberUpdateData);
+            const updateResponse = await APIService.updateRegisterMember(member.documentId, memberUpdateData);
             if (updateResponse.data?.updateMemberInformation) {
-              // Update cached member data with the response
-              authInfo.memberData = updateResponse.data.updateMemberInformation;
-              console.log("verifySuccess: Member profile updated and cached");
+              console.log("verifySuccess: Member profile updated successfully");
+
+              // ===== FIXED: Refresh member data using AuthContext =====
+              await getMemberInfoById(member.documentId);
             }
           } catch (error) {
             console.error("verifySuccess: Error updating member profile:", error);
@@ -217,13 +437,10 @@ const MemberVerifyPage = () => {
           }
         }
 
-        // Force refresh of all member-related state to switch to verified status
-        console.log("verifySuccess: Refreshing state to switch to verified member status");
-        refreshPhoneNumber((prev) => prev + 1);  // Refreshes userByPhoneNumberState
-        refreshZaloProfile((prev) => prev + 1);  // Refreshes userZaloProfileState
-        refresh((prev) => prev + 1);             // General refresh trigger
+        // ===== FIXED: AuthContext automatically handles state updates, no manual refresh needed =====
+        console.log("verifySuccess: AuthContext will automatically update member status");
 
-        // Small delay to ensure state updates propagate
+        // Small delay to ensure AuthContext updates propagate
         await new Promise((resolve) => setTimeout(resolve, 500));
 
         console.log("verifySuccess: Navigating to member profile with comprehensive data");
@@ -233,6 +450,33 @@ const MemberVerifyPage = () => {
       } else {
         console.log("verifySuccess: Guest user verified, navigating to users page");
         setPopupVerifySuccess(false);
+        navigate("/users"); // Navigate to users page for guest
+      }
+
+    } catch (error) {
+      console.error("verifySuccess: Error processing verification success:", error);
+      // Fallback navigation based on member status
+      setPopupVerifySuccess(false);
+      if (isVerifiedMember) {
+        navigate("/member-info");
+      } else {
+        navigate("/users");
+      }
+    }
+  };
+
+  // Alternative verifySuccess function that uses the tracked member status
+  const verifySuccessAlternative = async () => {
+    try {
+      console.log("verifySuccess: Processing based on tracked member status:", isVerifiedMember);
+
+      setPopupVerifySuccess(false);
+
+      if (isVerifiedMember) {
+        console.log("verifySuccess: Verified member - navigating to profile");
+        navigate("/users"); // Navigate to member profile page
+      } else {
+        console.log("verifySuccess: Guest user - navigating to users page");
         navigate("/users"); // Navigate to users page for guest
       }
 
@@ -380,7 +624,7 @@ const MemberVerifyPage = () => {
       <Modal
         visible={popupVerifySuccess}
         title=""
-        onClose={() => {}}
+        onClose={() => { }}
         verticalActions
       >
         <Box p={6}>
@@ -391,14 +635,23 @@ const MemberVerifyPage = () => {
             Xác thực hợp lệ
           </div>
           <div className="text-center text-[#222] my-4">
-            Chúc mừng bạn đã xác thực hội viên thành công!<br/>
-            Thông tin hội viên đã được lưu vào hồ sơ của bạn.
+            {isVerifiedMember ? (
+              <>
+                Chúc mừng bạn đã xác thực hội viên thành công!<br />
+                Thông tin hội viên đã được tải và lưu vào hồ sơ của bạn.
+              </>
+            ) : (
+              <>
+                Xác thực thành công!<br />
+                Bạn hiện đang sử dụng với tư cách khách. Có thể đăng ký thành hội viên để trải nghiệm đầy đủ tính năng.
+              </>
+            )}
           </div>
           <button
             className="block w-full h-12 py-2 font-bold text-white rounded-lg bg-blue-custom disabled:bg-blue-50 text-normal"
-            onClick={verifySuccess}
+            onClick={verifySuccessAlternative}
           >
-            Xem hồ sơ
+            {isVerifiedMember ? "Xem hồ sơ hội viên" : "Tiếp tục"}
           </button>
         </Box>
       </Modal>

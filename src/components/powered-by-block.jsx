@@ -3,6 +3,7 @@ import APIServices from "../services/api-service";
 import { useNavigate } from "react-router-dom";
 import { useRecoilState } from "recoil";
 import { poweredByBlockState } from "../state";
+import { IMAGE_DOMAINS } from "../utils/imageHelper";
 
 const PoweredByBlock = ({ customClass }) => {
   const [data, setData] = useRecoilState(poweredByBlockState);
@@ -22,7 +23,9 @@ const PoweredByBlock = ({ customClass }) => {
 
   const handleClick = () => {
     if (!data) return;
-    navigate("/sponsors/detail/" + data?.id);
+    // Handle both old and new data structure
+    const sponsorId = data?.documentId || data?.id;
+    navigate("/sponsors/detail/" + sponsorId);
   };
 
   return (
@@ -30,7 +33,8 @@ const PoweredByBlock = ({ customClass }) => {
       <img
         onClick={handleClick}
         className="w-[155px] block m-auto"
-        src="https://api.ybahcm.vn/public/yba/powered_by_logo_v2.png"
+        src={`${IMAGE_DOMAINS.API}/public/yba/powered_by_logo_v2.png`}
+        alt="Powered by YBA HCM"
       />
     </div>
   );

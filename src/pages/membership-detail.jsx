@@ -7,6 +7,7 @@ import { membershipInfoState } from "../state";
 import IconShareBlog from "../components/icons/share-icon-blog";
 import { openShareSheet } from "zmp-sdk/apis";
 import Helper from "../utils/helper";
+import { getMemberBenefitImageUrl, getImageProps } from "../utils/imageHelper";
 
 const MembershipDetailPage = () => {
   const navigate = useNavigate();
@@ -22,15 +23,16 @@ const MembershipDetailPage = () => {
         type: "zmp_deep_link",
         data: {
           title: Helper.truncateText(
-            membership?.customFields["Tên Công Ty"] ||
+            membership?.company?.ten_cong_ty ||
+            membership?.customFields?.["Tên Công Ty"] ||
               "Hội doanh nhân trẻ TP.HCM (YBA HCM)",
             100
           ),
-          description: `${membership?.customFields["Tên Ưu Đãi"]}`,
-          thumbnail:
-            (membership?.customFields["Banner"] &&
-              membership?.customFields["Banner"][0]?.url) ||
-            "https://api.ybahcm.vn/public/yba/yba-01.png",
+          description: `${membership?.title || membership?.customFields?.["Tên Ưu Đãi"] || ''}`,
+          thumbnail: getMemberBenefitImageUrl(membership, 'banner') ||
+            (membership?.customFields?.["Banner"] &&
+              getImageProps(membership?.customFields?.["Banner"][0]?.url).src) ||
+            getImageProps(null).src,
           path: shareLink,
         },
       });
@@ -43,35 +45,55 @@ const MembershipDetailPage = () => {
     <Page className="bg-white safe-page-content">
       <img
         className="block w-full -mt-2 mb-2.5"
-        src={`${
-          membership?.customFields?.["Banner"]?.[0].url ||
-          "https://api.ybahcm.vn/public/yba/yba-01.png"
-        }`}
+        {...getImageProps(
+          membership?.bannerImage?.url ||
+          membership?.customFields?.["Banner"]?.[0]?.url
+        )}
+        alt={membership?.title || "Member benefit banner"}
       />
       <div className="flex px-4 flex-col space-y-2.5">
-        {membership?.customFields?.["Hình Ảnh"]?.[0] && (
+        {/* ===== NEW: Use schema-compliant logo image with fallback ===== */}
+        {(membership?.logoImage || membership?.customFields?.["Hình Ảnh"]?.[0]) && (
           <div className="aspect-[1/1] mx-auto overflow-hidden w-[92px]">
             <img
               className="block w-full object-contain -mt-2 mb-2.5"
-              alt={membership?.customFields?.["Tên Công Ty"]}
-              src={`${membership?.customFields?.["Hình Ảnh"]?.[0].url}`}
+              {...getImageProps(
+                membership?.logoImage?.url ||
+                membership?.customFields?.["Hình Ảnh"]?.[0]?.url
+              )}
+              alt={membership?.company?.ten_cong_ty || membership?.customFields?.["Tên Công Ty"] || "Logo"}
             />
           </div>
         )}
         <div className="text-center mb-2">
           <h1 className="font-semibold text-[18px] text-[#333333] leading-[23.4px] mb-4">
-            {membership?.customFields?.["Tên Công Ty"]}
+            {membership?.company?.ten_cong_ty || membership?.customFields?.["Tên Công Ty"] || "Đối tác"}
           </h1>
           <span className="rounded-[99px] border border-[#E5E5E5] px-4 py-2 text-[#0E3D8A] text-[16px] leading-[20.8px] font-semibold">
-            {membership?.customFields?.["Tên Ưu Đãi"]}
+            {membership?.title || membership?.customFields?.["Tên Ưu Đãi"] || "Ưu đãi"}
           </span>
+          {/* ===== NEW: Show benefit type and value from schema ===== */}
+          {membership?.benefitType && (
+            <div className="mt-2 flex justify-center space-x-2">
+              <span className="bg-[#E6F4FF] text-[#0E3D8A] text-[12px] font-medium px-2 py-1 rounded">
+                {APIService.getMemberBenefitTypeDisplay(membership.benefitType)}
+              </span>
+              {membership?.value && (
+                <span className="bg-[#FFF2E6] text-[#D46B08] text-[12px] font-medium px-2 py-1 rounded">
+                  {membership.value} {APIService.getMemberBenefitValueUnitDisplay(membership.valueUnit)}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="text-normal py-2.5">
           <div className="ql-snow">
             <div
               className={`ql-editor`}
               dangerouslySetInnerHTML={{
-                __html: membership.customFields["Nội Dung Ưu Đãi"].html,
+                __html: membership?.description ||
+                        membership?.customFields?.["Nội Dung Ưu Đãi"]?.html ||
+                        "Thông tin chi tiết sẽ được cập nhật sớm."
               }}
             />
           </div>

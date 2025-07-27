@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Page, Icon, useNavigate } from "zmp-ui";
+import { getDefaultAvatar } from "../../utils/imageHelper";
 
 const RegisterMemberLoading = () => {
     const navigate = useNavigate();
@@ -21,7 +22,7 @@ const RegisterMemberLoading = () => {
                         </div>
                         <div className="flex py-2 px-3 border basis-1/2 rounded-md items-center" onClick={() => setShowCustomerForm(true)}>
                             <div className="">
-                                <img className="w-10 h-auto" src="https://api.ybahcm.vn/public/yba/default-avatar.png" />
+                                <img className="w-10 h-auto" src={getDefaultAvatar()} alt="Guest avatar" />
                             </div>
                             <div className="pl-2">
                                 <p className="text-normal">Khách vãng lai</p>

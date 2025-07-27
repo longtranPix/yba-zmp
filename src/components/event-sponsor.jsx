@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getSponsorLogoUrl, getImageProps } from "../utils/imageHelper";
+import Helper from "../utils/helper";
 
 const EventSponsors = ({ sponsors }) => {
   const [data, setData] = useState(null);
@@ -18,7 +20,7 @@ const EventSponsors = ({ sponsors }) => {
       list.push({
         ...item,
         sponsorshipTier,
-        logoUrls: item.logo?.url ? [item.logo.url] : [],
+        logoUrls: item.logo?.url ? [getSponsorLogoUrl(item)] : [],
       });
       newData[sponsorshipTier] = list;
     }
@@ -27,8 +29,9 @@ const EventSponsors = ({ sponsors }) => {
     setLevels(keys);
   }, [sponsors]);
 
+  // ===== FIXED: Use helper function for consistent tier display =====
   const formatTierName = (tier) => {
-    return tier === "Đồng hành chiến lược" ? "Đồng hành" : tier;
+    return Helper.getSponsorRankDisplay(tier);
   };
 
   if (sponsors == null || sponsors.length == 0 || !data) {
@@ -53,15 +56,11 @@ const EventSponsors = ({ sponsors }) => {
               <div className="w-2/3 pl-2">
                 <div className="flex flex-wrap gap-4">
                   {list.map((v, i) => {
-                    let logoUrl =
-                      v.logoUrls && v.logoUrls.length > 0
-                        ? v.logoUrls[0]
-                        : "https://placehold.co/125x125";
                     return (
                       <img
                         onClick={() => navigate(`/sponsors/detail/${v.documentId}`)}
-                        src={logoUrl}
-                        alt="Background"
+                        {...getImageProps(v.logo?.url, "https://placehold.co/125x125")}
+                        alt={v.ten_cong_ty || "Sponsor logo"}
                         className="h-10 w-auto"
                         key={i}
                       />

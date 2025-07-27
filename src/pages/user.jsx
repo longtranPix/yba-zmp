@@ -2,110 +2,117 @@ import React, { useState, useEffect } from "react";
 import { Page, Icon, useNavigate, Box, Modal } from "zmp-ui";
 import {
   configState,
-  userZaloProfileState,
-  userByPhoneNumberState,
 } from "../state";
 import { useRecoilValue } from "recoil";
 import APIServices from "../services/api-service";
 import WidgetOA from "../components/widget-oa";
 import PoweredByBlock from "../components/powered-by-block";
 import AuthSuccessIcon from "../components/icons/authenticate-success";
+import { useAuth } from "../contexts/AuthContext";
+import { getImageProps } from "../utils/imageHelper";
 
 const UserPage = () => {
   const navigate = useNavigate();
   const configs = useRecoilValue(configState);
-  const zaloProfile = useRecoilValue(userZaloProfileState);
-  const profile = useRecoilValue(userByPhoneNumberState);
-  const [isMember, setIsMember] = useState(false);
 
-  // Check member status based on auth info and profile data
+  // ===== NEW: Use AuthContext instead of old authentication =====
+  const {
+    userInfo,
+    member,
+    userType,
+    accountInfo,
+    getMemberInfoById,
+    isAuthenticated,
+    isMember
+  } = useAuth();
+
+  // Determine if user is member from AuthContext
+  // const isMember = userType === 'member';
+
+  const [membershipFeeStatus, setMembershipFeeStatus] = useState(null);
+  const [memberBenefits, setMemberBenefits] = useState([]);
+  const [isLoadingMember, setIsLoadingMember] = useState(false);
+
+  // ===== NEW: Ensure member data is loaded when account has member reference =====
   useEffect(() => {
-    const checkMemberStatus = async () => {
+    const ensureMemberDataLoaded = async () => {
+      // Check if account has member reference but member data is not loaded
+      if (accountInfo?.hoi_vien?.documentId && !member && !isLoadingMember) {
+        console.log('UserPage: Account has member reference but no member data, loading member info');
+        setIsLoadingMember(true);
+
+        try {
+          await getMemberInfoById(accountInfo.hoi_vien.documentId);
+          console.log('UserPage: Successfully loaded member data from account reference');
+        } catch (error) {
+          console.error('UserPage: Error loading member data from account reference:', error);
+        } finally {
+          setIsLoadingMember(false);
+        }
+      }
+    };
+
+    ensureMemberDataLoaded();
+  }, [accountInfo, member, getMemberInfoById, isAuthenticated, isMember, isLoadingMember]);
+
+  // ===== NEW: Load member-specific data when user is a member =====
+  useEffect(() => {
+    const loadMemberData = async () => {
+      // Check if we should load member data
+      const shouldLoadMemberData = isMember && (member?.documentId || accountInfo?.hoi_vien?.documentId);
+
+      if (!shouldLoadMemberData) {
+        console.log('UserPage: Not a member or no member ID available, skipping member data load');
+        setMembershipFeeStatus(null);
+        setMemberBenefits([]);
+        return;
+      }
+
+      // Get member ID from either member data or account reference
+      const memberId = member?.documentId || accountInfo?.hoi_vien?.documentId;
+      console.log('UserPage: Loading member data for member ID:', memberId);
+
       try {
-        console.log('UserPage: Checking member status');
+        console.log('UserPage: Loading member data for member ID:', memberId);
 
-        // Get current auth info
-        const authInfo = await APIServices.getAuthInfo();
-        console.log('UserPage: Auth info:', {
-          hasJWT: !!authInfo?.jwt,
-          isMember: authInfo?.isMember,
-          memberId: authInfo?.memberId,
-          hasProfile: !!profile
-        });
+        // Check membership fee status using the member ID
+        try {
+          const feeStatus = await APIServices.checkMembershipFeeStatus(memberId);
+          console.log('UserPage: Membership fee status for member ID', memberId, ':', feeStatus);
+          setMembershipFeeStatus(feeStatus.data);
+        } catch (error) {
+          console.error('UserPage: Error checking membership fee status:', error);
+          setMembershipFeeStatus({ status: "Chưa đóng hội phí", hasPaidFee: false });
+        }
 
-        // User is a member if they have auth info indicating membership OR profile data
-        const isUserMember = (authInfo?.isMember && authInfo?.memberId) || profile !== null;
-
-        console.log('UserPage: Setting isMember to:', isUserMember);
-        setIsMember(isUserMember);
+        // Load member benefits
+        try {
+          const benefits = await APIServices.getMemberBenefits({
+            hien_thi: { eq: true }
+          });
+          console.log('UserPage: Member benefits:', benefits);
+          if (benefits.error === 0) {
+            setMemberBenefits(benefits.data);
+          }
+        } catch (error) {
+          console.error('UserPage: Error loading member benefits:', error);
+          setMemberBenefits([]);
+        }
 
       } catch (error) {
-        console.error('UserPage: Error checking member status:', error);
-        setIsMember(false);
+        console.error('UserPage: Error loading member data:', error);
+        setMembershipFeeStatus(null);
+        setMemberBenefits([]);
       }
     };
 
-    checkMemberStatus();
-  }, [profile]); // Re-check when profile changes
+    loadMemberData();
+  }, [isMember, member?.documentId, accountInfo?.hoi_vien?.documentId]); // Re-run when member status or member ID changes
 
-  // Also check member status on component mount and when returning from verification
-  useEffect(() => {
-    const handleMemberStatusRefresh = async () => {
-      // Check if we just returned from verification (has auth info but no profile yet)
-      const authInfo = await APIServices.getAuthInfo();
-      if (authInfo?.isMember && authInfo?.memberId && !profile) {
-        console.log('UserPage: Detected verified member without profile, refreshing...');
-        await refreshMemberInfo();
-      }
-    };
+  // ===== REMOVED: Old refresh logic - AuthContext handles this automatically =====
 
-    handleMemberStatusRefresh();
-  }, []); // Run once on mount
-
-  // Function to refresh member info and update layout
-  const refreshMemberInfo = async () => {
-    try {
-      console.log('UserPage: Refreshing member info');
-
-      // Get current auth info
-      const authInfo = await APIServices.getAuthInfo();
-
-      if (authInfo?.isMember && authInfo?.memberId) {
-        console.log('UserPage: Fetching fresh member data using documentId:', authInfo.memberId);
-
-        // Call GraphQL getMember to get fresh comprehensive data
-        const memberResponse = await APIServices.getMember(authInfo.memberId);
-
-        if (memberResponse.error === 0 && memberResponse.member) {
-          console.log('UserPage: Got fresh member data:', memberResponse.member);
-
-          // Update cached member data in authInfo
-          authInfo.memberData = memberResponse.member;
-
-          // Update member status to verified
-          setIsMember(true);
-
-          console.log('UserPage: Updated to verified member status with fresh data');
-
-          return memberResponse.member;
-        } else {
-          console.warn('UserPage: Failed to fetch member data:', memberResponse);
-          return null;
-        }
-      } else {
-        console.log('UserPage: No member ID available, user remains as guest');
-        setIsMember(false);
-        return null;
-      }
-
-    } catch (error) {
-      console.error('UserPage: Error refreshing member info:', error);
-      setIsMember(false);
-      return null;
-    }
-  };
-
-  const groupId = profile?.customFields?.["Chi hội"]?.[0]?.id || "";
+  // ===== NEW: Get group ID from AuthContext member data =====
+  const groupId = (isMember && member?.chapter?.documentId) || "";
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
@@ -120,7 +127,7 @@ const UserPage = () => {
   const copyURL = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url).then(
-      () => {},
+      () => { },
       (err) => {
         if (err.name === "NotAllowedError") {
           const tempInput = document.createElement("input");
@@ -136,27 +143,38 @@ const UserPage = () => {
     );
   };
 
+  // ✅ FIXED: Status display using correct AuthContext data types
   const getStatus = () => {
-    if (
-      profile?.customFields["(Tạm) Trạng Thái Xác Thực"] == "Khóa tài khoản"
-    ) {
-      return (
-        <p className="w-fit text-[13px] text-[#FF3333] bg-red-100 font-bold border border-[#FF3333] px-1 py-0.5 rounded-md">
-          Khóa tài khoản
-        </p>
-      );
-    } else if (isMember) {
-      return (
-        <div className="flex items-center space-x-1 w-fit text-[13px] text-[#333333] bg-[#E5E5E5] px-1 py-0.5 rounded-md">
-          <AuthSuccessIcon />
-          <p className="text-center">Đã xác thực</p>
-        </div>
-      );
+    if (isMember && member) {
+      // ✅ FIXED: Use correct field name and handle enum values
+      const memberStatus = member.trang_thai_hoi_vien || member.status || "Dang_hoat_dong";
+      const accountStatus = member.trang_thai || "Hoat_dong";
+
+      // Handle locked account status with correct enum values
+      if (memberStatus === "Ngung_hoat_dong" || accountStatus === "Khoa_tai_khoan") {
+        return (
+          <p className="w-fit text-[13px] text-[#FF3333] bg-red-100 font-bold border border-[#FF3333] px-1 py-0.5 rounded-md">
+            {accountStatus === "Khoa_tai_khoan" ? "Khóa tài khoản" : "Ngừng hoạt động"}
+          </p>
+        );
+      } else {
+        return (
+          <div className="flex flex-col space-y-1">
+            <div className="flex items-center space-x-1 w-fit text-[13px] text-[#333333] bg-[#E5E5E5] px-1 py-0.5 rounded-md">
+              <AuthSuccessIcon />
+              <p className="text-center">Đã xác thực</p>
+            </div>
+            <div className="flex flex-col text-xs text-gray-600">
+              <span>{getMemberType()}</span>
+              <span>{getMemberChapter()}</span>
+            </div>
+          </div>
+        );
+      }
     } else {
       return (
         <p className="w-fit text-[13px] text-[#333333] bg-[#E5E5E5] px-1 py-0.5 rounded-md">
-          {profile?.customFields?.["(Tạm) Trạng Thái Xác Thực"] ||
-            "Chưa xác thực"}
+          Chưa xác thực
         </p>
       );
     }
@@ -166,31 +184,105 @@ const UserPage = () => {
     navigate("/members/verify");
   };
 
+  // ===== NEW: Helper functions using AuthContext member data =====
+  const getMemberName = () => {
+    if (isMember && member) {
+      // Use member data from AuthContext
+      return member.full_name ||
+        member.last_name ||
+        member.first_name ||
+        (userInfo && userInfo.name) ||
+        "Thành viên";
+    } else if (isMember && accountInfo?.hoi_vien?.documentId && !member) {
+      // Member account but member data not loaded yet
+      return (userInfo && userInfo.name) || "Đang tải thông tin hội viên...";
+    } else {
+      // Guest user - use Zalo profile name
+      return (userInfo && userInfo.name) || "Vãng lai";
+    }
+  };
+
+  const getMemberChapter = () => {
+    if (isMember && member) {
+      return member.chapter?.ten_chi_hoi || "Chưa có chi hội";
+    } else if (isMember && accountInfo?.hoi_vien?.documentId && !member) {
+      return "Đang tải...";
+    }
+    return "Chưa có chi hội";
+  };
+
+  const getMemberType = () => {
+    if (isMember && member) {
+      return member.member_type || "Hội viên";
+    } else if (isMember && accountInfo?.hoi_vien?.documentId && !member) {
+      return "Đang tải...";
+    }
+    return "Khách";
+  };
+
+  const getMemberStatus = () => {
+    if (isMember && member) {
+      // ✅ FIXED: Use correct field names and convert enum to Vietnamese
+      const memberStatus = member.trang_thai_hoi_vien || member.status || "Dang_hoat_dong";
+      const accountStatus = member.trang_thai || "Hoat_dong";
+
+      if (accountStatus === "Khoa_tai_khoan") {
+        return "Khóa tài khoản";
+      } else if (memberStatus === "Ngung_hoat_dong") {
+        return "Ngừng hoạt động";
+      } else if (memberStatus === "Roi_hoi") {
+        return "Rời hội";
+      } else {
+        return "Đang hoạt động";
+      }
+    } else if (isMember && accountInfo?.hoi_vien?.documentId && !member) {
+      return "Đang tải thông tin...";
+    }
+    return "Chưa xác thực";
+  };
+
+  const hasChapterInfo = () => {
+    if (isMember && member) {
+      return member.chapter?.ten_chi_hoi;
+    }
+    return false;
+  };
+
   return (
     <Page className="safe-page-content">
+      {/* ===== NEW: Loading indicator when member data is being loaded ===== */}
+      {isLoadingMember && (
+        <div className="flex items-center justify-center py-4 mx-4 mt-3 bg-white rounded-lg shadow-sm">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm text-gray-600">Đang tải thông tin hội viên...</span>
+          </div>
+        </div>
+      )}
+
       {!isMember && (
         <div className="gap-2.5 grid">
           <div className="flex items-center px-3 py-2 mx-4 mt-3 bg-white rounded-lg shadow-sm">
             <img
               className="rounded-full w-14 h-14"
-              src="https://api.ybahcm.vn/public/yba/default-avatar.png"
+              {...getImageProps(
+                null,
+                "https://api.ybahcm.vn/public/yba/default-avatar.png",
+                {
+                  alt: "Default avatar",
+                  className: "rounded-full w-14 h-14"
+                }
+              )}
             />
             <div className="pl-4">
               <p className="text-[16px] leading-[120%] font-semibold mb-0.5 text-[#333333]">
-                Vãng lai
+                {getMemberName()}
               </p>
               <p className="text-[14px] leading-[120%] text-[#333333] py-0.5 px-1 rounded bg-[#E5E5E5]">
-                Chưa xác thực
+                {getMemberStatus()}
               </p>
             </div>
             <div className="flex items-center justify-end flex-1 space-x-2">
-              <button
-                className="whitespace-nowrap block py-1 px-3 h-8 bg-gray-500 text-white font-medium text-sm leading-4 rounded-lg"
-                onClick={refreshMemberInfo}
-                title="Refresh member status"
-              >
-                ↻
-              </button>
               <button
                 className="whitespace-nowrap block py-1 px-4 h-8 bg-[#0E3D8A] text-white font-medium text-sm leading-4 rounded-lg"
                 onClick={() => handleVerifyMember()}
@@ -225,29 +317,37 @@ const UserPage = () => {
           <div className="flex items-center px-3 py-2 mx-4 mt-3 bg-white rounded-lg shadow-sm">
             <img
               className="rounded-full w-14 h-14"
-              src={
-                zaloProfile && zaloProfile.avatar
-                  ? zaloProfile.avatar
-                  : "https://api.ybahcm.vn/public/yba/default-avatar.png"
-              }
+              {...getImageProps(
+                member?.member_image?.url || userInfo?.avatar ||
+                "https://api.ybahcm.vn/public/yba/default-avatar.png"
+              )}
             />
             <div className="pl-4">
               <p className="text-[16px] text-[#333333] font-semibold mb-1">
-                {(profile && profile.customFields?.["Họ và tên"]) ||
-                  (zaloProfile && zaloProfile.name) ||
-                  ""}
+                {getMemberName()}
               </p>
               {getStatus()}
+              {/* Membership fee status display */}
+              {membershipFeeStatus && (
+                <div className="mt-1">
+                  <p className={`text-xs px-2 py-1 rounded-md font-medium ${membershipFeeStatus.hasPaidFee
+                    ? 'text-green-700 bg-green-100 border border-green-300'
+                    : 'text-orange-700 bg-orange-100 border border-orange-300'
+                    }`}>
+                    {membershipFeeStatus.status}
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex items-center ml-auto space-x-2">
               {isMember ? (
-                profile?.customFields["Chi hội"]?.[0] && (
+                hasChapterInfo() && (
                   <button
                     className="mx-auto whitespace-nowrap block py-1 px-4 h-8 bg-[#0E3D8A] text-white font-medium text-sm leading-4 rounded-lg"
                     onClick={() =>
                       navigate(
                         `/invite-to-join-by-link/${groupId}/${encodeURIComponent(
-                          profile.name
+                          getMemberName()
                         )}`
                       )
                     }
@@ -314,7 +414,7 @@ const UserPage = () => {
       <Modal
         visible={isShareModalOpen}
         title=""
-        onClose={() => {}}
+        onClose={() => { }}
         verticalActions
       >
         <Box p={6}>

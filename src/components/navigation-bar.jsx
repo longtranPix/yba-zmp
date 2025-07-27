@@ -10,6 +10,8 @@ import { useNavigate } from "zmp-ui";
 import { useRecoilValue } from "recoil";
 import { bottomNavigationStatus } from "../state";
 import APIService from "../services/api-service";
+import { useAuth } from "../contexts/AuthContext";
+import { getNavBackgroundUrl, getImageProps } from "../utils/imageHelper";
 
 const layoutCache = {
   data: null,
@@ -23,69 +25,71 @@ const NavigationBar = () => {
   const showNavigation = useRecoilValue(bottomNavigationStatus);
   const [navBackground, setNavBackground] = useState(null);
   const [items, setItems] = useState([]);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  const defaultItems = useMemo(
-    () => [
+  // ===== NEW: Use AuthContext for user type and admin status =====
+  const { userType, isAdmin, accountInfo, isAuthenticated } = useAuth();
+
+  // ===== FIXED: Base navigation items matching GraphQL layoutConfig structure =====
+  const getNavigationItems = useMemo(() => {
+    const baseItems = [
       {
         icon: <HomeIcon customClass="-w-6 h-6 block m-auto" />,
-        iconActive: (
-          <HomeIcon customClass="-w-6 h-6 block m-auto" active={true} />
-        ),
+        iconActive: <HomeIcon customClass="-w-6 h-6 block m-auto" active={true} />,
         label: "Trang chủ",
         path: "/",
+        name: "Trang chủ", // Match with GraphQL data name field
       },
       {
         icon: <PostIcon customClass="-w-6 h-6 block m-auto" />,
-        iconActive: (
-          <PostIcon customClass="-w-6 h-6 block m-auto" active={true} />
-        ),
+        iconActive: <PostIcon customClass="-w-6 h-6 block m-auto" active={true} />,
         label: "Tin tức",
         path: "/posts",
+        name: "Tin tức", // Match with GraphQL data name field
       },
       {
         icon: <TicketIcon customClass="-w-6 h-6 block m-auto" />,
-        iconActive: (
-          <TicketIcon customClass="-w-6 h-6 block m-auto" active={true} />
-        ),
+        iconActive: <TicketIcon customClass="-w-6 h-6 block m-auto" active={true} />,
         label: "Vé",
         path: "/tickets",
-      },
-      {
-        icon: <ScanQRIcon customClass="-w-6 h-6 block m-auto" />,
-        iconActive: (
-          <ScanQRIcon customClass="-w-6 h-6 block m-auto" active={true} />
-        ),
-        label: "QR",
-        path: "/admin/qrscan",
+        name: "Vé", // Match with GraphQL data name field
       },
       {
         icon: <CalendarIcon customClass="-w-6 h-6 block m-auto" />,
-        iconActive: (
-          <CalendarIcon customClass="-w-6 h-6 block m-auto" active={true} />
-        ),
+        iconActive: <CalendarIcon customClass="-w-6 h-6 block m-auto" active={true} />,
         label: "Sự kiện",
         path: "/events",
+        name: "Sự kiện", // Match with GraphQL data name field
       },
       {
         icon: <UserIcon customClass="-w-6 h-6 block m-auto" />,
-        iconActive: (
-          <UserIcon customClass="-w-6 h-6 block m-auto" active={true} />
-        ),
+        iconActive: <UserIcon customClass="-w-6 h-6 block m-auto" active={true} />,
         label: "Cá nhân",
         path: "/users",
+        name: "Cá nhân", // Match with GraphQL data name field
       },
-    ],
-    []
-  );
+      {
+        icon: <ScanQRIcon customClass="-w-6 h-6 block m-auto" />,
+        iconActive: <ScanQRIcon customClass="-w-6 h-6 block m-auto" active={true} />,
+        label: "QR",
+        path: "/admin/qrscan",
+        name: "QR", // Match with GraphQL data name field
+      },
+    ];
+
+    // ===== FIXED: Return all items, let GraphQL layoutConfig determine what's shown =====
+    return baseItems;
+  }, []);
+
+  const defaultItems = getNavigationItems;
 
   useEffect(() => {
     const fetchNavbarData = async () => {
       console.log('========fetchNavbarData========');
+      console.log('Navigation: User type:', userType, 'Is admin:', isAdmin);
+
       try {
         const now = Date.now();
         let layoutData;
-        let adminStatus;
 
         if (layoutCache.data && now < layoutCache.expiry) {
           layoutData = layoutCache.data;
@@ -99,79 +103,78 @@ const NavigationBar = () => {
           }
         }
 
-        const pathname = location.pathname;
-        const needAdminCheck = pathname === "/admin/qrscan" || !isAdmin;
-
-        if (needAdminCheck) {
-          adminStatus = await APIService.checkIsAdmin();
-          setIsAdmin(adminStatus);
-        }
+        // ===== REMOVED: Admin checking - now handled by AuthContext =====
 
         if (layoutData) {
+          // ===== FIXED: Process GraphQL layoutConfig data structure =====
           const navItems = layoutData.filter(
             (item) => item.name !== "Hình nền"
           );
           const background = layoutData.find(
             (item) => item.name === "Hình nền"
           );
-          setNavBackground(background?.customFields?.["Hình ảnh"]?.[0]?.url);
+          setNavBackground(getNavBackgroundUrl(background));
 
-          const updatedItems = defaultItems.map((defaultItem) => {
-            const matchedItem = navItems.find(
-              (item) => item.name === defaultItem.label
+          // ===== FIXED: Create navigation items based on GraphQL layoutConfig order =====
+          const updatedItems = navItems.map((layoutItem) => {
+            // Find matching default item by name
+            const defaultItem = defaultItems.find(
+              (item) => item.name === layoutItem.name
             );
 
-            const baseItem = !matchedItem
-              ? defaultItem
-              : {
-                  ...defaultItem,
-                  icon: matchedItem.customFields?.["Hình ảnh"]?.[0]?.url ? (
-                    <img
-                      src={matchedItem.customFields?.["Hình ảnh"]?.[0]?.url}
-                      className="block h-6 m-auto -w-6"
-                      alt={matchedItem.name}
-                    />
-                  ) : (
-                    defaultItem.icon
-                  ),
-                  iconActive: matchedItem.customFields?.["Hình ảnh active"]?.[0]
-                    ?.url ? (
-                    <img
-                      src={
-                        matchedItem.customFields?.["Hình ảnh active"]?.[0]?.url
-                      }
-                      className="block h-6 m-auto -w-6"
-                      alt={matchedItem.name}
-                    />
-                  ) : matchedItem.customFields?.["Hình ảnh"]?.[0]?.url ? (
-                    <img
-                      src={matchedItem.customFields?.["Hình ảnh"]?.[0]?.url}
-                      className="block h-6 m-auto -w-6"
-                      alt={matchedItem.name}
-                    />
-                  ) : (
-                    defaultItem.iconActive
-                  ),
-                  label:
-                    matchedItem.customFields?.["Tên hiển thị"] ||
-                    matchedItem.name ||
-                    defaultItem.label,
-                  backgroundColor:
-                    matchedItem.customFields?.["Màu nền active"]?.[0],
-                  textColor: matchedItem.customFields?.["Màu chữ"]?.[0],
-                  textColorActive:
-                    matchedItem.customFields?.["Màu chữ active"]?.[0],
-                  fillActive: matchedItem.customFields?.["Fill active"],
-                };
+            // If no default item found, skip this layout item
+            if (!defaultItem) {
+              console.log('NavigationBar: No default item found for layout item:', layoutItem.name);
+              return null;
+            }
 
-            return {
-              ...baseItem,
-              active:
-                baseItem.path === "/"
-                  ? location.pathname === "/"
-                  : location.pathname.includes(baseItem.path),
+            // Create navigation item with layout configuration
+            const navItem = {
+              ...defaultItem,
+              // Use display name from customFields if available
+              label: layoutItem.customFields?.["Tên hiển thị"] || layoutItem.customFields?.["Văn bản"] || layoutItem.name,
+              // Use custom icons if available
+              icon: layoutItem.customFields?.["Hình ảnh"]?.[0]?.url ? (
+                <img
+                  {...getImageProps(layoutItem.customFields?.["Hình ảnh"]?.[0]?.url)}
+                  className="block h-6 m-auto -w-6"
+                  alt={layoutItem.name}
+                />
+              ) : (
+                defaultItem.icon
+              ),
+              // Use active icon from customFields if available
+              iconActive: layoutItem.customFields?.["Hình ảnh active"]?.[0]?.url ? (
+                <img
+                  {...getImageProps(layoutItem.customFields?.["Hình ảnh active"]?.[0]?.url)}
+                  className="block h-6 m-auto -w-6"
+                  alt={layoutItem.name}
+                />
+              ) : layoutItem.customFields?.["Hình ảnh"]?.[0]?.url ? (
+                <img
+                  {...getImageProps(layoutItem.customFields?.["Hình ảnh"]?.[0]?.url)}
+                  className="block h-6 m-auto -w-6"
+                  alt={layoutItem.name}
+                />
+              ) : (
+                defaultItem.iconActive
+              ),
+              // Style properties from customFields
+              backgroundColor: layoutItem.customFields?.["Màu nền active"]?.[0],
+              textColor: layoutItem.customFields?.["Màu chữ"]?.[0],
+              textColorActive: layoutItem.customFields?.["Màu chữ active"]?.[0],
+              fillActive: layoutItem.customFields?.["Fill active"],
             };
-          });
+
+            // Return navigation item with active state
+            return {
+              ...navItem,
+              active:
+                navItem.path === "/"
+                  ? location.pathname === "/"
+                  : location.pathname.includes(navItem.path),
+            };
+          }).filter(Boolean); // Remove null items
 
           setItems(updatedItems);
         }
@@ -181,19 +184,9 @@ const NavigationBar = () => {
     };
 
     fetchNavbarData();
-  }, [location.pathname, defaultItems, isAdmin]);
+  }, [location.pathname, defaultItems, userType, isAdmin]); // Added userType dependency
 
-  const getPathFromName = (name) => {
-    const pathMap = {
-      "Trang chủ": "/",
-      "Tin tức": "/posts",
-      QR: "/admin/qrscan",
-      Vé: "/tickets",
-      "Sự kiện": "/events",
-      "Cá nhân": "/users",
-    };
-    return pathMap[name] || "/";
-  };
+  // ===== REMOVED: getPathFromName function - paths are now defined in base items =====
 
   const handleClick = (path) => {
     navigate(path);
@@ -201,23 +194,55 @@ const NavigationBar = () => {
 
   if (!showNavigation) return null;
 
+  // ===== NEW: Get user type display info =====
+  const getUserTypeInfo = () => {
+    switch (userType) {
+      case 'admin':
+        return { label: 'Admin', color: '#dc2626', emoji: '👑' }; // Red for admin
+      case 'member':
+        return { label: 'Hội viên', color: '#059669', emoji: '⭐' }; // Green for member
+      case 'guest':
+      default:
+        return { label: 'Khách', color: '#6b7280', emoji: '👤' }; // Gray for guest
+    }
+  };
+
+  const userTypeInfo = getUserTypeInfo();
+
   return (
-    <div
-      className="fixed bottom-0 left-0 z-50 flex items-center justify-center w-full gap-6 px-8 gap-x-2"
-      style={
-        navBackground
-          ? {
-              backgroundImage: `url(${navBackground})`,
-              backgroundSize: "cover",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
-            }
-          : { backgroundColor: "#fff" }
-      }
-    >
+    <div className="fixed bottom-0 left-0 z-50 w-full">
+      {/* ===== FIXED: User type indicator bar - uncommented ===== */}
+      {/* <div
+        className="flex items-center justify-center py-1 text-xs font-medium text-white"
+        style={{ backgroundColor: userTypeInfo.color }}
+      >
+        <span className="mr-1">{userTypeInfo.emoji}</span>
+        <span>{userTypeInfo.label}</span>
+        {accountInfo?.loai_tai_khoan && (
+          <span className="ml-2 text-xs opacity-75">
+            ({accountInfo.loai_tai_khoan})
+          </span>
+        )}
+      </div> */}
+
+      {/* ===== Navigation items ===== */}
+      <div
+        className="flex items-center justify-center w-full gap-6 px-8 gap-x-2"
+        style={
+          navBackground
+            ? {
+                backgroundImage: `url(${navBackground})`,
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+              }
+            : { backgroundColor: "#fff" }
+        }
+      >
+      {/* ===== NEW: Items already filtered by user type in getNavigationItems ===== */}
       {items
-        .filter((item) => item.label !== "QR" || isAdmin)
-        .map((item, i) => (
+      .filter((i) => i.name !== "QR" || isAdmin)
+      .map((item, i) => (
           <div
             key={i}
             className={`py-4 pb-3 basis-1/4 nav-item ${
@@ -249,6 +274,7 @@ const NavigationBar = () => {
             </p>
           </div>
         ))}
+      </div>
     </div>
   );
 };

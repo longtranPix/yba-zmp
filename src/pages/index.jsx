@@ -10,24 +10,27 @@ import Tags from "../components/tags";
 import Banner from "../components/banner";
 import { useRecoilValue } from "recoil";
 import Helper from "../utils/helper";
+import { getEventImageUrl, getPostImageUrl, getSponsorLogoUrl, getImageProps, getEmptyStateIcon, getBannerImageUrl, getPostCategoryDisplay } from "../utils/imageHelper";
+import { useAuth } from "../contexts/AuthContext";
 import {
   listEventState,
   listChapterState,
   configState,
   listPostsState,
   multipleEventTicketsState,
-  userByPhoneNumberState,
 } from "../state";
 import HomeLoading from "../components/skeletons/home-loading";
 import APIServices from "../services/api-service";
 import PoweredByBlock from "../components/powered-by-block";
-import ZaloService from "../services/zalo-service";
-import { getRouteParams } from "zmp-sdk/apis";
+// ✅ REMOVED: Unused imports
 
 const HomePage = () => {
   const navigate = useNavigate();
+
+  // ✅ OPTIMIZED: Use AuthContext for authentication management - only get what we need
+  const { isMember } = useAuth();
+
   const events = useRecoilValue(listEventState);
-  const profile = useRecoilValue(userByPhoneNumberState);
 
   const eventIds = events.map((event) => event.documentId);
   const allEventTickets = useRecoilValue(multipleEventTicketsState(eventIds));
@@ -50,7 +53,8 @@ const HomePage = () => {
   const [sponsorsA, setSponsorsA] = useState([]);
   const [sponsorsB, setSponsorsB] = useState([]);
   const posts = useRecoilValue(listPostsState);
-  const [isMember, setIsMember] = useState(false);
+
+  // ===== FIXED: Removed local isMember state, using AuthContext isMember instead =====
 
   const [bannerImages, setBannerImages] = useState([]);
   const [introText, setIntroText] = useState("");
@@ -80,7 +84,7 @@ const HomePage = () => {
           ) {
             const formattedBanners = bannerItem.customFields["Tập tin"].map(
               (file) => ({
-                image: file.url,
+                image: getBannerImageUrl(file),
                 url: "#",
                 id: file.id,
               })
@@ -108,6 +112,7 @@ const HomePage = () => {
   useEffect(() => {
     APIServices.getSponsorsA().then((results) => {
       if (results?.data?.sponsors && results?.data?.sponsors?.length > 0) {
+        console.log('api-services.getSponsorsA - GraphQL: ', results?.data?.sponsors);
         setSponsorsA(results?.data?.sponsors);
       }
     });
@@ -118,15 +123,16 @@ const HomePage = () => {
     });
   }, []);
 
+  // ===== FIXED: Updated to use schema-compliant sponsor structure =====
   const hasEnoughSponsorsWithLogos = (sponsors, type = "strategic") => {
     if (type === "strategic") {
       const strategicSponsors = sponsors.filter(
-        (sponsor) => sponsor.customFields?.["Logo"]?.[0]?.url
+        (sponsor) => sponsor.logo?.url
       );
       return strategicSponsors.length > 2;
     } else if (type === "sponsor") {
       const regularSponsors = sponsors.filter(
-        (sponsor) => sponsor.customFields?.["Logo"]?.[0]?.url
+        (sponsor) => sponsor.logo?.url
       );
 
       return regularSponsors.length > 2;
@@ -178,13 +184,16 @@ const HomePage = () => {
       <ul className="marquee__content">
         {sponsorsA.map(
           (sponsor, index) =>
-            sponsor.customFields?.["Logo"]?.[0].url && (
+            sponsor?.logo?.url && (
               <div
                 key={index}
                 className="marquee__item"
-                onClick={() => navigate(`/sponsors/detail/${sponsor.id}`)}
+                // onClick={() => navigate(`/sponsors/detail/${sponsor.documentId}`)}
               >
-                <img src={sponsor.customFields?.["Logo"]?.[0].url} />
+                <img
+                  {...getImageProps(sponsor.logo?.url)}
+                  alt={sponsor.ten_cong_ty || "Sponsor logo"}
+                />
               </div>
             )
         )}
@@ -196,13 +205,16 @@ const HomePage = () => {
       <ul className="marquee__content marquee__content__small">
         {sponsorsB.map(
           (sponsor, index) =>
-            sponsor.customFields?.["Logo"]?.[0].url && (
+            sponsor?.logo?.url && (
               <div
                 key={index}
                 className="marquee__item"
-                onClick={() => navigate(`/sponsors/detail/${sponsor.id}`)}
+                onClick={() => navigate(`/sponsors/detail/${sponsor.documentId}`)}
               >
-                <img src={sponsor.customFields?.["Logo"]?.[0].url} />
+                <img
+                  {...getImageProps(sponsor.logo?.url)}
+                  alt={sponsor.ten_cong_ty || "Sponsor logo"}
+                />
               </div>
             )
         )}
@@ -262,13 +274,8 @@ const HomePage = () => {
             >
               <img
                 className="block w-full rounded-t-lg"
-                src={
-                  k.hinh_anh?.url ||
-                  "https://api.ybahcm.vn/public/yba/yba-01.png"
-                }
-                onError={(e) => {
-                  e.target.src = "https://api.ybahcm.vn/public/yba/yba-01.png";
-                }}
+                {...getImageProps(k.hinh_anh?.url)}
+                alt={k.ten_su_kien || "Event image"}
               />
               {getEventStatus({ status: k.trang_thai })}
               <div className="p-3">
@@ -302,7 +309,8 @@ const HomePage = () => {
           <div className="mx-auto mt-10 text-center mb-44">
             <img
               className="block w-24 h-auto m-auto"
-              src="https://api.ybahcm.vn/public/yba/icon-empty.png"
+              src={getEmptyStateIcon()}
+              alt="No events"
             />
             <p className="text-normal text-[#6F7071] my-2 px-16">
               Chưa có sự kiện
@@ -313,7 +321,7 @@ const HomePage = () => {
 
       {sponsorsA &&
         sponsorsA.some(
-          (sponsor) => sponsor.customFields?.["Logo"]?.[0]?.url
+          (sponsor) => sponsor?.logo?.url
         ) && (
           <>
             <div className="p-4 text-lg font-bold text-center">
@@ -365,29 +373,26 @@ const HomePage = () => {
               <SwiperSlide key={i}>
                 <div
                   className="mb-4 overflow-hidden border rounded-lg cursor-pointer"
-                  onClick={() => navigate(`/posts/detail/${post.id}`)}
+                  onClick={() => navigate(`/posts/detail/${post.documentId}`)}
                 >
                   <img
                     className="block object-cover w-full h-48"
-                    src={
-                      post.customFields?.["Ảnh minh hoạ"]?.[0]?.url ||
-                      "https://api.ybahcm.vn/public/yba/yba-01.png"
-                    }
-                    alt="Post Thumbnail"
+                    {...getImageProps(post.hinh_anh_minh_hoa?.url)}
+                    alt={post.tieu_de || "Post Thumbnail"}
                   />
                   <div className="grid gap-2 mx-4 my-3">
                     <p className="text-sm font-normal text-[#F40000]">
                       Thông tin - Sự kiện
-                      {post.customFields?.["Danh mục"]?.[0]?.data && (
-                        <> • {post.customFields?.["Danh mục"]?.[0]?.data}</>
+                      {post?.danh_muc && (
+                        <> • {getPostCategoryDisplay(post.danh_muc)}</>
                       )}
                     </p>
                     <p className="line-clamp-3 text-base font-semibold text-[#333333]">
-                      {post.customFields?.["Tiêu đề"]}
+                      {post.tieu_de}
                     </p>
                     <p
                       dangerouslySetInnerHTML={{
-                        __html: post.customFields?.["Nội dung"]?.html,
+                        __html: post.noi_dung || "",
                       }}
                       className="line-clamp-3 text-sm text-[#999999] max-h-[60px]"
                     ></p>
@@ -396,12 +401,12 @@ const HomePage = () => {
                     <div className="flex items-center">
                       <Icon icon="zi-clock-1" size={16} className="mr-1" />
                       <span>
-                        {Helper.formatDate(post.customFields?.["Tạo lúc"])}
+                        {Helper.formatDate(post.ngay_dang || post.createdAt)}
                       </span>
                     </div>
                     <div className="flex items-center uppercase">
                       <Icon icon="zi-user-solid" size={16} className="mr-1" />
-                      <span>{post.customFields?.["Tác giả"]}</span>
+                      <span>{post.tac_gia || post.hoi_vien?.full_name || "Tác giả"}</span>
                     </div>
                   </div>
                 </div>
@@ -414,7 +419,7 @@ const HomePage = () => {
           <div className="mx-auto my-4 text-center">
             <img
               className="block w-24 h-auto m-auto"
-              src="https://api.ybahcm.vn/public/yba/icon-empty.png"
+              src={getEmptyStateIcon()}
               alt="No Posts"
             />
             <p className="mt-2 text-sm text-gray-500">{"Chưa có tin tức"}</p>
@@ -450,7 +455,7 @@ const HomePage = () => {
         <div className="flex justify-between">
           <p className="font-bold">Giới thiệu về YBA HCM</p>
           <p
-            onClick={() => navigate("/about")}
+            // onClick={() => navigate("/about")}
             className="text-[#0070DF] text-sm font-bold"
           >
             Xem thêm
