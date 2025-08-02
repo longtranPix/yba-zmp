@@ -58,7 +58,7 @@ const EventSponsors = ({ sponsors }) => {
                   {list.map((v, i) => {
                     return (
                       <img
-                        onClick={() => navigate(`/sponsors/detail/${v.documentId}`)}
+                        // onClick={() => navigate(`/sponsors/detail/${v.documentId}`)}
                         {...getImageProps(v.logo?.url, "https://placehold.co/125x125")}
                         alt={v.ten_cong_ty || "Sponsor logo"}
                         className="h-10 w-auto"

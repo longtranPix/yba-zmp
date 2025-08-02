@@ -123,7 +123,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const { userInfo } = await getUserInfo({
-        autoRequestPermission: false,
+        autoRequestPermission: true,
       });
 
       console.log('AuthContext: Got Zalo user info:', {
@@ -544,7 +544,7 @@ export const AuthProvider = ({ children }) => {
       setError('Failed to activate guest authentication');
       return { success: false, error: error.message };
     }
-  }, [getAllZaloDataWithPermissions, getAccountByZaloId, getMemberInfoById, createAccount, setUserType, setError, userType]);
+  }, [getAccountByZaloId, getMemberInfoById, createAccount, setUserType, setError, userType]);
 
   // ===== ADMIN CHECKING FUNCTIONS =====
   const isAdmin = useCallback(() => {
@@ -578,14 +578,15 @@ export const AuthProvider = ({ children }) => {
         if (hasPermission) {
           console.log('AuthContext: Already has userInfo permission, getting user data');
 
+          const res = await getAllZaloDataWithPermissions();
           // Step 2: Get existing Zalo user info (no permission request)
-          const zaloInfo = await getZaloUserInfo();
+          // const zaloInfo = await getZaloUserInfo();
 
-          if (zaloInfo?.id) {
+          if (res.success && res.userInfo?.id) {
             console.log('AuthContext: Got existing Zalo user info, checking for account');
 
             // Step 3: Get account by ma_zalo
-            const account = await getAccountByZaloId(zaloInfo.id);
+            const account = await getAccountByZaloId(res.userInfo.id);
 
             if (account?.hoi_vien?.documentId) {
               console.log('AuthContext: Found account with member, getting member info');
@@ -617,14 +618,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
-  }, [
-    checkZaloPermissions,
-    getZaloUserInfo,
-    getAccountByZaloId,
-    getMemberInfoById,
-    setUserType,
-    setError
-  ]);
+  }, []);
 
   // ===== EVENT REGISTRATION HELPER =====
 

@@ -1756,6 +1756,38 @@ type PotentialMemberEntityResponseCollection {
   pageInfo: Pagination!
 }
 
+input RequestMembershipFeeFiltersInput {
+  documentId: IDFilterInput
+  member: MemberInformationFiltersInput
+  phone_number: StringFilterInput
+  createdAt: DateTimeFilterInput
+  updatedAt: DateTimeFilterInput
+  publishedAt: DateTimeFilterInput
+  and: [RequestMembershipFeeFiltersInput]
+  or: [RequestMembershipFeeFiltersInput]
+  not: RequestMembershipFeeFiltersInput
+}
+
+input RequestMembershipFeeInput {
+  member: ID
+  phone_number: String
+  publishedAt: DateTime
+}
+
+type RequestMembershipFee {
+  documentId: ID!
+  member: MemberInformation
+  phone_number: String
+  createdAt: DateTime
+  updatedAt: DateTime
+  publishedAt: DateTime
+}
+
+type RequestMembershipFeeEntityResponseCollection {
+  nodes: [RequestMembershipFee!]!
+  pageInfo: Pagination!
+}
+
 enum ENUM_SPONSOR_TRANG_THAI_PHE_DUYET {
   Moi
   Duyet
@@ -1942,7 +1974,7 @@ type TicketPricesManageRelationResponseCollection {
   nodes: [TicketPricesManage!]!
 }
 
-union GenericMorph = UploadFile | I18NLocale | ReviewWorkflowsWorkflow | ReviewWorkflowsWorkflowStage | UsersPermissionsPermission | UsersPermissionsRole | UsersPermissionsUser | Account | AppConfig | Bank | Bdsd | Chapter | Company | EventApproval | EventInformation | EventRegistration | ExecutiveCommittee | LayoutConfig | MemberBenefits | MemberInformation | MembershipFee | MiniappConfig | MiniappManager | Post | PotentialMember | Sponsor | TicketPricesManage
+union GenericMorph = UploadFile | I18NLocale | ReviewWorkflowsWorkflow | ReviewWorkflowsWorkflowStage | UsersPermissionsPermission | UsersPermissionsRole | UsersPermissionsUser | Account | AppConfig | Bank | Bdsd | Chapter | Company | EventApproval | EventInformation | EventRegistration | ExecutiveCommittee | LayoutConfig | MemberBenefits | MemberInformation | MembershipFee | MiniappConfig | MiniappManager | Post | PotentialMember | RequestMembershipFee | Sponsor | TicketPricesManage
 
 input FileInfoInput {
   name: String
@@ -2074,6 +2106,9 @@ type Query {
   potentialMember(documentId: ID!, status: PublicationStatus = PUBLISHED): PotentialMember
   potentialMembers_connection(filters: PotentialMemberFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): PotentialMemberEntityResponseCollection
   potentialMembers(filters: PotentialMemberFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [PotentialMember]!
+  requestMembershipFee(documentId: ID!, status: PublicationStatus = PUBLISHED): RequestMembershipFee
+  requestMembershipFees_connection(filters: RequestMembershipFeeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): RequestMembershipFeeEntityResponseCollection
+  requestMembershipFees(filters: RequestMembershipFeeFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [RequestMembershipFee]!
   sponsor(documentId: ID!, status: PublicationStatus = PUBLISHED): Sponsor
   sponsors_connection(filters: SponsorFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): SponsorEntityResponseCollection
   sponsors(filters: SponsorFiltersInput, pagination: PaginationArg = {}, sort: [String] = [], status: PublicationStatus = PUBLISHED): [Sponsor]!
@@ -2141,6 +2176,9 @@ type Mutation {
   createPotentialMember(status: PublicationStatus = PUBLISHED, data: PotentialMemberInput!): PotentialMember
   updatePotentialMember(documentId: ID!, status: PublicationStatus = PUBLISHED, data: PotentialMemberInput!): PotentialMember
   deletePotentialMember(documentId: ID!): DeleteMutationResponse
+  createRequestMembershipFee(status: PublicationStatus = PUBLISHED, data: RequestMembershipFeeInput!): RequestMembershipFee
+  updateRequestMembershipFee(documentId: ID!, status: PublicationStatus = PUBLISHED, data: RequestMembershipFeeInput!): RequestMembershipFee
+  deleteRequestMembershipFee(documentId: ID!): DeleteMutationResponse
   createSponsor(status: PublicationStatus = PUBLISHED, data: SponsorInput!): Sponsor
   updateSponsor(documentId: ID!, status: PublicationStatus = PUBLISHED, data: SponsorInput!): Sponsor
   deleteSponsor(documentId: ID!): DeleteMutationResponse

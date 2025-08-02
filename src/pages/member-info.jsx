@@ -1,43 +1,48 @@
-import React, { useEffect, useState } from "react";
-import { Page, useNavigate, DatePicker } from "zmp-ui";
+import { useEffect, useState, useRef } from "react";
+import { Page, DatePicker, Icon } from "zmp-ui";
 import APIServices from "../services/api-service";
 import { getImageProps } from "../utils/imageHelper";
 import Helper from "../utils/helper";
 import { useAuth } from "../contexts/AuthContext";
 
+const configs = ['Anh', 'Chị']
+
 const MemberInfoPage = () => {
   // ✅ REFACTORED: Use only AuthContext and direct API calls
   const { member, userInfo, isMember } = useAuth();
-  const navigate = useNavigate();
 
-  // ✅ REMOVED: All Recoil state dependencies
-  const [currentProfile, setCurrentProfile] = useState({
-    id: "",
-    name: "",
-    fullname: "",
-    lastName: "",
-    firstName: "",
-    gender: "",
-    phoneNumber: "",
-    email: "",
-    company: "",
-    position: "",
-    dateOfBirth: "",
-    memberType: "",
-    status: "",
-    joinDate: "",
-    chapter: null,
-    memberImage: null,
-    accounts: [],
-    membershipFees: [],
-    executiveRoles: [],
-    eventsAttended: "",
-    numberOfPosts: ""
-  });
+  // ✅ OPTIMIZED: Initialize with basic data from useAuth() if available
+  const [currentProfile, setCurrentProfile] = useState(() => ({
+    id: member?.documentId || "",
+    name: userInfo?.id || "",
+    fullname: member?.full_name || userInfo?.name || "",
+    lastName: member?.last_name || "",
+    firstName: member?.first_name || "",
+    gender: member?.salutation || "",
+    phoneNumber: member?.phone_number_1 || member?.phone_number_2 || "",
+    email: member?.email_1 || member?.email_2 || "",
+    company: member?.company || "",
+    position: member?.position || "",
+    dateOfBirth: member?.date_of_birth ? new Date(member.date_of_birth) : "",
+    memberType: member?.member_type || "",
+    status: member?.trang_thai_hoi_vien || member?.status || "",
+    joinDate: member?.join_date || "",
+    chapter: member?.chapter || null,
+    memberImage: member?.member_image || null,
+    accounts: member?.tai_khoan || [],
+    membershipFees: member?.hoi_phi || [],
+    executiveRoles: member?.ban_chap_hanh || [],
+    eventsAttended: Number(member?.events_attended) || 0,
+    numberOfPosts: Number(member?.number_of_posts) || 0
+  }));
   // ✅ REMOVED: All Recoil state refreshers
   const [isProcessing, setIsProcessing] = useState(false);
   const [isChange, setIsChange] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // File input ref for image upload
+  const fileInputRef = useRef(null);
 
   // ✅ REFACTORED: Load member information directly from API using member ID from useAuth
   useEffect(() => {
@@ -55,10 +60,10 @@ const MemberInfoPage = () => {
         // Direct API call to get member information
         const freshMemberData = await APIServices.getMember(member.documentId);
 
-        if (freshMemberData) {
+        if (freshMemberData.error === 0) {
           console.log('MemberInfoPage: Member information loaded successfully');
           // Process the fresh member data
-          processAuthContextMemberData(freshMemberData);
+          processAuthContextMemberData(freshMemberData.member);
         } else {
           console.log('MemberInfoPage: No member information found');
           // Use existing member data from AuthContext as fallback
@@ -82,11 +87,11 @@ const MemberInfoPage = () => {
     } else {
       setIsLoading(false);
     }
-  }, [member?.documentId, isMember]); // Re-load when member ID changes
+  }, [member?.documentId, isMember]); // ✅ OPTIMIZED: Re-load only when member ID or member status changes
 
   // ✅ REFACTORED: Helper function to process member data from AuthContext or API
   const processAuthContextMemberData = (memberData) => {
-    console.log('MemberInfoPage: Processing member data:', memberData);
+    console.log('MemberInfoPage: Processing member data:', memberData, member);
 
     if (memberData) {
       // Check if data is from AuthContext (has documentId) or old API (has customFields)
@@ -195,11 +200,7 @@ const MemberInfoPage = () => {
           name: userInfo?.id,
           fullname: memberData.customFields?.["Họ và tên"] || "",
           gender: memberData.customFields?.["Nhân xưng"]?.[0] || "",
-          phoneNumber: String(
-            memberData.customFields?.["Số điện thoại 1"] ||
-            memberData.customFields?.["Số điện thoại 2"] ||
-            ""
-          ),
+          phoneNumber: String(),
           email: String(
             memberData.customFields?.["Email 1"] ||
             memberData.customFields?.["Email 2"] ||
@@ -244,6 +245,83 @@ const MemberInfoPage = () => {
     } catch (error) {
       console.error("Error parsing API date:", error);
       return "";
+    }
+  };
+
+  // ===== IMAGE UPLOAD FUNCTIONS =====
+  const handleImageUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // ===== NEW FLOW: Upload media immediately, save to member on confirm =====
+  const [uploadedMediaId, setUploadedMediaId] = useState(null); // Store uploaded media ID
+  const [previewImageUrl, setPreviewImageUrl] = useState(null); // Store preview URL
+
+  const handleImageFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      Helper.showAlert('Vui lòng chọn file hình ảnh');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      Helper.showAlert('Kích thước file không được vượt quá 5MB');
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      console.log('Uploading media:', { file, basic: event.target, name: file.name, size: file.size, type: file.type });
+
+      // ✅ NEW FLOW: Upload media to public endpoint
+      const uploadResponse = await APIServices.uploadMedia(file, file.name);
+
+      if (uploadResponse.error === 0) {
+        console.log('Media uploaded successfully:', uploadResponse.data);
+
+        // ✅ Store uploaded media ID for later use when "Xác nhận" is clicked
+        setUploadedMediaId(uploadResponse.data.documentId);
+        setPreviewImageUrl(uploadResponse.data.url);
+
+        // ✅ Update local state for immediate preview
+        setCurrentProfile(prev => ({
+          ...prev,
+          memberImage: {
+            id: uploadResponse.data.documentId,
+            url: uploadResponse.data.url,
+            name: uploadResponse.data.name,
+            size: uploadResponse.data.size,
+            mime: uploadResponse.data.mime,
+            width: uploadResponse.data.width,
+            height: uploadResponse.data.height,
+            ext: uploadResponse.data.ext,
+            hash: uploadResponse.data.hash,
+            createdAt: uploadResponse.data.createdAt,
+            updatedAt: uploadResponse.data.updatedAt
+          }
+        }));
+
+        Helper.showAlertInfo('Ảnh đã được tải lên. Nhấn "Xác nhận" để lưu thay đổi.', 3000);
+        setIsChange(true); // Mark as changed to enable confirm button
+
+      } else {
+        Helper.showAlert(`Lỗi tải ảnh: ${uploadResponse.message}`);
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      Helper.showAlert('Có lỗi xảy ra khi tải ảnh lên');
+    } finally {
+      setIsUploadingImage(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -301,12 +379,7 @@ const MemberInfoPage = () => {
     return isChange;
   };
 
-  // const verifySuccess = () => {
-  //   setPopupVerifySuccess(false);
-  //   setTimeout(() => {
-  //     refresh();
-  //   }, 300);
-  // };
+
 
   const save = async () => {
     let isValid = true;
@@ -323,25 +396,136 @@ const MemberInfoPage = () => {
     }
     setIsProcessing(true);
 
-    if (profile.id) {
-      const formattedProfile = {
-        ...currentProfile,
-        dateOfBirth: currentProfile.dateOfBirth
-          ? formatDate(currentProfile.dateOfBirth)
-          : "",
+    if (currentProfile.id) {
+      // ✅ FIX: Only include fields with valid values (not empty strings or undefined)
+      const changedFields = {};
+
+      // Helper function to check if a value is valid for GraphQL
+      const isValidValue = (value) => {
+        return value !== undefined && value !== null && value !== "";
       };
 
-      let res = await APIServices.saveMemberInfo(formattedProfile);
-      if (res.error == 0) {
-        let id = res.data.id;
+      // Helper function to check if a date value is valid
+      const isValidDate = (value) => {
+        if (!value || value === "") return false;
+        const date = new Date(value);
+        return !isNaN(date.getTime());
+      };
+
+      // Helper function to check if a numeric value is valid
+      const isValidNumber = (value) => {
+        return value !== undefined && value !== null && value !== "" && !isNaN(value);
+      };
+
+      // Map frontend field names to GraphQL field names - only include valid values
+      if (isValidValue(currentProfile.fullname)) changedFields.full_name = currentProfile.fullname;
+      if (isValidValue(currentProfile.lastName)) changedFields.last_name = currentProfile.lastName;
+      if (isValidValue(currentProfile.firstName)) changedFields.first_name = currentProfile.firstName;
+      if (isValidValue(currentProfile.gender)) changedFields.salutation = currentProfile.gender;
+      if (isValidValue(currentProfile.academicDegree)) changedFields.academic_degree = currentProfile.academicDegree;
+      if (isValidValue(currentProfile.ethnicity)) changedFields.ethnicity = currentProfile.ethnicity;
+      if (isValidValue(currentProfile.phoneNumber)) changedFields.phone_number_1 = currentProfile.phoneNumber;
+      if (isValidValue(currentProfile.zalo)) changedFields.zalo = currentProfile.zalo;
+      if (isValidValue(currentProfile.email)) changedFields.email_1 = currentProfile.email;
+      if (isValidValue(currentProfile.homeAddress)) changedFields.home_address = currentProfile.homeAddress;
+      if (isValidValue(currentProfile.provinceCity)) changedFields.province_city = currentProfile.provinceCity;
+      if (isValidValue(currentProfile.district)) changedFields.district = currentProfile.district;
+      if (isValidValue(currentProfile.company)) changedFields.company = currentProfile.company;
+      if (isValidValue(currentProfile.companyAddress)) changedFields.company_address = currentProfile.companyAddress;
+
+      // ✅ SPECIAL HANDLING FOR DATE FIELDS - only include if valid date
+      if (isValidDate(currentProfile.companyEstablishmentDate)) {
+        changedFields.company_establishment_date = currentProfile.companyEstablishmentDate;
+      }
+
+      if (isValidNumber(currentProfile.numberOfEmployees)) changedFields.number_of_employees = parseInt(currentProfile.numberOfEmployees);
+      if (isValidValue(currentProfile.businessIndustry)) changedFields.business_industry = currentProfile.businessIndustry;
+      if (isValidValue(currentProfile.businessProductsServices)) changedFields.business_products_services = currentProfile.businessProductsServices;
+      if (isValidValue(currentProfile.position)) changedFields.position = currentProfile.position;
+      if (isValidValue(currentProfile.officePhone)) changedFields.office_phone = currentProfile.officePhone;
+      if (isValidValue(currentProfile.website)) changedFields.website = currentProfile.website;
+      if (isValidValue(currentProfile.assistantName)) changedFields.assistant_name = currentProfile.assistantName;
+      if (isValidValue(currentProfile.assistantPhone)) changedFields.assistant_phone = currentProfile.assistantPhone;
+      if (isValidValue(currentProfile.assistantEmail)) changedFields.assistant_email = currentProfile.assistantEmail;
+      if (isValidValue(currentProfile.memberType)) changedFields.member_type = currentProfile.memberType;
+      if (isValidValue(currentProfile.status)) changedFields.status = currentProfile.status;
+
+      // ✅ SPECIAL HANDLING FOR DATE FIELDS
+      if (isValidDate(currentProfile.joinDate)) {
+        changedFields.join_date = currentProfile.joinDate;
+      }
+      if (isValidDate(currentProfile.inactiveDate)) {
+        changedFields.inactive_date = currentProfile.inactiveDate;
+      }
+
+      if (isValidValue(currentProfile.notes)) changedFields.notes = currentProfile.notes;
+
+      // ✅ SPECIAL HANDLING FOR DATE OF BIRTH
+      if (currentProfile.dateOfBirth && isValidDate(currentProfile.dateOfBirth)) {
+        changedFields.date_of_birth = formatDate(currentProfile.dateOfBirth);
+      }
+
+      console.log('Updating member with changed fields:', {
+        documentId: currentProfile.id,
+        fieldsCount: Object.keys(changedFields).length,
+        fields: changedFields
+      });
+
+      // ✅ Only proceed if there are actual changes to save
+      if (Object.keys(changedFields).length === 0) {
+        Helper.showAlertInfo("Không có thay đổi nào để lưu", 2000);
+        setIsProcessing(false);
+        setIsChange(false);
+        return;
+      }
+
+      let res = await APIServices.saveMemberInfo(currentProfile.id, changedFields);
+      if (res?.data?.updateMemberInformation) {
+        // ✅ FIX: Use documentId from GraphQL response
+        let documentId = res.data?.updateMemberInformation?.documentId || currentProfile.id;
         setCurrentProfile({
-          id: id,
+          id: documentId,
           ...currentProfile,
         });
-        Helper.showAlertInfo("Cập nhật thông tin hội viên thành công", 2500);
-        refreshUserByPhone();
+
+        // ✅ NEW FLOW: Update member image if there's an uploaded media ID
+        if (member?.documentId && uploadedMediaId) {
+          console.log('Updating member image with uploaded media ID:', uploadedMediaId);
+
+          const updateImageResponse = await APIServices.updateMemberImage(
+            member.documentId,
+            uploadedMediaId
+          );
+
+          if (updateImageResponse.error === 0) {
+            console.log('Member image updated successfully');
+
+            // ✅ Refresh member data in AuthContext to update user profile screen
+            if (typeof getMemberInfoById === 'function') {
+              try {
+                await getMemberInfoById(member.documentId);
+                console.log('Member data refreshed after image update');
+              } catch (error) {
+                console.error('Error refreshing member data:', error);
+              }
+            }
+
+            // Clear the uploaded media ID since it's now saved
+            setUploadedMediaId(null);
+            setPreviewImageUrl(null);
+
+            Helper.showAlertInfo("Cập nhật thông tin và ảnh đại diện thành công", 2500);
+          } else {
+            console.error('Failed to update member image:', updateImageResponse.message);
+            Helper.showAlertInfo("Cập nhật thông tin thành công, nhưng có lỗi khi cập nhật ảnh đại diện", 3000);
+          }
+        } else {
+          Helper.showAlertInfo("Cập nhật thông tin hội viên thành công", 2500);
+        }
+
+        // ✅ REMOVED: refreshUserByPhone() - no longer needed with useAuth()
       } else {
-        Helper.showAlert(`${res?.message}`);
+        Helper.showAlert(`${res?.data?.error}`);
       }
     } else {
       const formattedProfile = {
@@ -356,7 +540,7 @@ const MemberInfoPage = () => {
         setCurrentProfile({
           ...data,
         });
-        refreshMembers((prev) => prev + 1);
+        // ✅ REMOVED: refreshMembers() - no longer needed with useAuth()
         await APIServices.login();
       } else {
         Helper.showAlert(`${res?.message}`);
@@ -427,18 +611,47 @@ const MemberInfoPage = () => {
       <div className="">
         <div className="mt-2">
           <label className="text-base font-bold">Ảnh đại diện</label>
-          <div className="mt-2">
+          <div className="mt-2 relative">
             <img
               {...getImageProps(
                 currentProfile.memberImage?.url || userInfo?.avatar,
                 "https://api.ybahcm.vn/public/yba/default-avatar.png",
                 {
                   alt: currentProfile.fullname || "Member avatar",
-                  className: "w-20 h-20 rounded-full"
+                  className: "w-20 h-20 rounded-full object-cover"
                 }
               )}
             />
+
+            {/* Edit button overlay */}
+            {/* <button
+              onClick={handleImageUploadClick}
+              disabled={isUploadingImage}
+              className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+              title="Thay đổi ảnh đại diện"
+            >
+              {isUploadingImage ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                <Icon icon="zi-edit" size={14} />
+              )}
+            </button> */}
+
+            {/* Hidden file input */}
+            {/* <input
+              ref={fileInputRef}
+              type="file"
+              name="files"
+              multiple={false}
+              accept="image/*"
+              onChange={handleImageFileChange}
+              className="hidden"
+            /> */}
           </div>
+
+          {isUploadingImage && (
+            <p className="text-sm text-blue-600 mt-2">Đang tải ảnh lên...</p>
+          )}
         </div>
 
         {/* Display comprehensive member information if available */}
@@ -559,7 +772,7 @@ const MemberInfoPage = () => {
           <label className="text-base font-bold">Nhân xưng</label>
           <div className="grid grid-cols-4 mt-2">
             {configs &&
-              configs.genders.map((v, i) => {
+              configs.map((v, i) => {
                 return (
                   <div className="flex items-center mb-2" key={i}>
                     <input
@@ -606,9 +819,7 @@ const MemberInfoPage = () => {
               type="tel"
               disabled={
                 isMember &&
-                (!!profile?.customFields?.["Số điện thoại 1"] ||
-                  !!profile?.customFields?.["Số điện thoại 2"] ||
-                  !!member?.phone_number_1 ||
+                (!!member?.phone_number_1 ||
                   !!member?.phone_number_2)
               }
               className="border disabled:bg-[#E5E5E5] w-full h-12 p-4 rounded-md"
@@ -628,8 +839,7 @@ const MemberInfoPage = () => {
             <input
               disabled={
                 isMember &&
-                (!!profile?.customFields?.["Email 1"] ||
-                  !!profile?.customFields?.["Email 2"] ||
+                (
                   !!member?.email_1 ||
                   !!member?.email_2)
               }

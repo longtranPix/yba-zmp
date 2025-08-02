@@ -138,6 +138,65 @@ export const memberMembershipFeesState = selectorFamily({
   },
 });
 
+// ===== NEW: Member Benefits Recoil State =====
+export const memberBenefitsRefreshTrigger = atom({
+  key: "memberBenefitsRefreshTrigger",
+  default: 0,
+});
+
+export const listMemberBenefitsState = selector({
+  key: "ListMemberBenefitsState",
+  get: async ({ get }) => {
+    get(memberBenefitsRefreshTrigger); // Subscribe to refresh trigger
+
+    try {
+      console.log('listMemberBenefitsState: Fetching member benefits via GraphQL');
+
+      const response = await APIServices.getMemberBenefits({
+        hien_thi: { eq: true }
+      }, {
+        start: 0,
+        limit: 50
+      });
+
+      if (response.error === 0) {
+        console.log('listMemberBenefitsState: Loaded member benefits:', response.data.length);
+        return response.data;
+      } else {
+        console.error('listMemberBenefitsState: Error loading member benefits:', response.message);
+        return [];
+      }
+    } catch (error) {
+      console.error('listMemberBenefitsState error:', error);
+      return [];
+    }
+  },
+});
+
+export const memberBenefitInfoState = selectorFamily({
+  key: "MemberBenefitInfoState",
+  get: (id) => async ({ get }) => {
+    try {
+      if (!id) return null;
+
+      console.log('memberBenefitInfoState: Fetching member benefit by ID:', id);
+
+      const response = await APIServices.getMemberBenefit(id);
+
+      if (response.error === 0) {
+        console.log('memberBenefitInfoState: Loaded member benefit:', response.data);
+        return response.data;
+      } else {
+        console.error('memberBenefitInfoState: Error loading member benefit:', response.message);
+        return null;
+      }
+    } catch (error) {
+      console.error('memberBenefitInfoState error:', error);
+      return null;
+    }
+  },
+});
+
 export const listSponsorState = selector({
   key: "ListSponsorState",
   get: async ({ get }) => {

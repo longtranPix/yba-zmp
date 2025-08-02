@@ -1,3 +1,5 @@
+/* ✅ FIX: Remove any potential charset conflicts by ensuring our CSS doesn't declare it */
+
 .page {
   padding: 16px 16px 96px 16px;
 }

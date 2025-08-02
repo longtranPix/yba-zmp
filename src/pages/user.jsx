@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Page, Icon, useNavigate, Box, Modal } from "zmp-ui";
 import {
   configState,
@@ -8,6 +8,8 @@ import APIServices from "../services/api-service";
 import WidgetOA from "../components/widget-oa";
 import PoweredByBlock from "../components/powered-by-block";
 import AuthSuccessIcon from "../components/icons/authenticate-success";
+import SuccessIcon from "../components/icons/success-icon";
+import WarningIcon from "../components/icons/warning-icon";
 import { useAuth } from "../contexts/AuthContext";
 import { getImageProps } from "../utils/imageHelper";
 
@@ -19,7 +21,6 @@ const UserPage = () => {
   const {
     userInfo,
     member,
-    userType,
     accountInfo,
     getMemberInfoById,
     isAuthenticated,
@@ -30,8 +31,19 @@ const UserPage = () => {
   // const isMember = userType === 'member';
 
   const [membershipFeeStatus, setMembershipFeeStatus] = useState(null);
-  const [memberBenefits, setMemberBenefits] = useState([]);
   const [isLoadingMember, setIsLoadingMember] = useState(false);
+  const [hasExistingFeeRequest, setHasExistingFeeRequest] = useState(false);
+  const [isCreatingFeeRequest, setIsCreatingFeeRequest] = useState(false);
+
+  // ✅ REFACTORED: Member benefits now loaded via Recoil state in membership pages
+
+  // ===== NEW: Modal configuration for membership fee requests =====
+  const [modalConfig, setModalConfig] = useState({
+    visible: false,
+    type: "", // 'success', 'error'
+    title: "",
+    message: "",
+  });
 
   // ===== NEW: Ensure member data is loaded when account has member reference =====
   useEffect(() => {
@@ -64,7 +76,7 @@ const UserPage = () => {
       if (!shouldLoadMemberData) {
         console.log('UserPage: Not a member or no member ID available, skipping member data load');
         setMembershipFeeStatus(null);
-        setMemberBenefits([]);
+        // ✅ REMOVED: setMemberBenefits([]) - now handled by Recoil state
         return;
       }
 
@@ -85,29 +97,117 @@ const UserPage = () => {
           setMembershipFeeStatus({ status: "Chưa đóng hội phí", hasPaidFee: false });
         }
 
-        // Load member benefits
-        try {
-          const benefits = await APIServices.getMemberBenefits({
-            hien_thi: { eq: true }
-          });
-          console.log('UserPage: Member benefits:', benefits);
-          if (benefits.error === 0) {
-            setMemberBenefits(benefits.data);
-          }
-        } catch (error) {
-          console.error('UserPage: Error loading member benefits:', error);
-          setMemberBenefits([]);
-        }
+        // ✅ REMOVED: Member benefits now loaded via Recoil state
+        // Member benefits are now handled by listMemberBenefitsState in Recoil
 
       } catch (error) {
         console.error('UserPage: Error loading member data:', error);
         setMembershipFeeStatus(null);
-        setMemberBenefits([]);
+        // ✅ REMOVED: setMemberBenefits([]) - now handled by Recoil state
       }
     };
 
     loadMemberData();
   }, [isMember, member?.documentId, accountInfo?.hoi_vien?.documentId]); // Re-run when member status or member ID changes
+
+  // ===== NEW: Check detailed membership fee request status =====
+  useEffect(() => {
+    const checkMembershipFeeRequestStatus = async () => {
+      if (!member?.documentId) return;
+
+      try {
+        console.log('Checking detailed membership fee request status for member:', member.documentId);
+
+        const response = await APIServices.getMembershipFeeRequestStatus(member.documentId);
+        if (response.error === 0) {
+          const { hasExistingRequest, status, latestRequest } = response.data;
+
+          setHasExistingFeeRequest(hasExistingRequest);
+
+          console.log('Detailed membership fee request status:', {
+            hasExistingRequest,
+            totalRequests: response.data.totalRequests,
+            latestRequestDate: latestRequest?.createdAt,
+            memberName: status?.memberName,
+            phoneNumber: status?.phoneNumber
+          });
+        }
+      } catch (error) {
+        console.error('Error checking membership fee request status:', error);
+      }
+    };
+
+    checkMembershipFeeRequestStatus();
+  }, [member?.documentId]);
+
+  // ===== NEW: Modal helper functions =====
+  const showModal = (config) => {
+    setModalConfig({ ...config, visible: true });
+    // Auto dismiss after 3 seconds for success, keep error modals open
+    if (config.type === "success") {
+      setTimeout(() => {
+        closeModal();
+      }, 3000);
+    }
+  };
+
+  const closeModal = () => {
+    setModalConfig((prev) => ({ ...prev, visible: false }));
+  };
+
+  // ===== NEW: Create membership fee request with modal =====
+  const handleCreateMembershipFeeRequest = async () => {
+    if (!member?.documentId || !userInfo?.id) {
+      console.error('Missing member ID or phone number');
+      showModal({
+        type: "error",
+        title: "Lỗi thông tin",
+        message: "Không tìm thấy thông tin hội viên hoặc số điện thoại. Vui lòng thử lại sau.",
+      });
+      return;
+    }
+
+    try {
+      setIsCreatingFeeRequest(true);
+      console.log('Creating membership fee request:', {
+        memberId: member.documentId,
+        phoneNumber: userInfo.id
+      });
+
+      const response = await APIServices.createRequestMembershipFee(
+        member.documentId,
+        userInfo.phoneNumber
+      );
+
+      if (response.error === 0) {
+        console.log('Membership fee request created successfully:', response.data);
+        setHasExistingFeeRequest(true);
+
+        // Show success modal
+        showModal({
+          type: "success",
+          title: "Gửi yêu cầu thành công",
+          message: "Yêu cầu đóng hội phí đã được gửi thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất để hướng dẫn thanh toán.",
+        });
+      } else {
+        console.error('Failed to create membership fee request:', response.message);
+        showModal({
+          type: "error",
+          title: "Gửi yêu cầu thất bại",
+          message: response.message || "Không thể tạo yêu cầu đóng hội phí. Vui lòng thử lại sau.",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating membership fee request:', error);
+      showModal({
+        type: "error",
+        title: "Có lỗi xảy ra",
+        message: "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.",
+      });
+    } finally {
+      setIsCreatingFeeRequest(false);
+    }
+  };
 
   // ===== REMOVED: Old refresh logic - AuthContext handles this automatically =====
 
@@ -266,10 +366,10 @@ const UserPage = () => {
             <img
               className="rounded-full w-14 h-14"
               {...getImageProps(
-                null,
+                userInfo?.avatar,
                 "https://api.ybahcm.vn/public/yba/default-avatar.png",
                 {
-                  alt: "Default avatar",
+                  alt: userInfo?.name || "User avatar",
                   className: "rounded-full w-14 h-14"
                 }
               )}
@@ -314,12 +414,19 @@ const UserPage = () => {
       )}
       {isMember && (
         <div className="gap-2.5 grid">
-          <div className="flex items-center px-3 py-2 mx-4 mt-3 bg-white rounded-lg shadow-sm">
+          <div className="flex items-center px-3 py-2 mx-4 mt-3 bg-white rounded-lg shadow-sm" onClick={() => navigate("/members/info")}>
             <img
               className="rounded-full w-14 h-14"
               {...getImageProps(
-                member?.member_image?.url || userInfo?.avatar ||
-                "https://api.ybahcm.vn/public/yba/default-avatar.png"
+                // ✅ UPDATED: Show member image if isMember and has member_image, otherwise show userInfo avatar
+                isMember && member?.member_image?.url
+                  ? member.member_image.url
+                  : userInfo?.avatar,
+                "https://api.ybahcm.vn/public/yba/default-avatar.png",
+                {
+                  alt: isMember ? (member?.full_name || "Member avatar") : (userInfo?.name || "User avatar"),
+                  className: "rounded-full w-14 h-14"
+                }
               )}
             />
             <div className="pl-4">
@@ -327,6 +434,24 @@ const UserPage = () => {
                 {getMemberName()}
               </p>
               {getStatus()}
+              <div className="mt-2">
+                {isMember && (
+                  hasChapterInfo() && (
+                    <button
+                      className="whitespace-nowrap block py-1 px-4 h-8 bg-[#0E3D8A] text-white font-medium text-sm leading-4 rounded-lg"
+                      onClick={() =>
+                        navigate(
+                          `/invite-to-join-by-link/${groupId}/${encodeURIComponent(
+                            getMemberName()
+                          )}`
+                        )
+                      }
+                    >
+                      Mời hội viên
+                    </button>
+                  )
+                )}
+              </div>
               {/* Membership fee status display */}
               {membershipFeeStatus && (
                 <div className="mt-1">
@@ -338,24 +463,59 @@ const UserPage = () => {
                   </p>
                 </div>
               )}
+
+              {/* Membership fee request button - Show for verified members who haven't paid and don't have existing request */}
+              {membershipFeeStatus &&
+                !membershipFeeStatus.hasPaidFee &&
+                !hasExistingFeeRequest &&
+                member?.status !== "Ngung_hoat_dong" &&
+                accountInfo?.trang_thai !== "Khoa_tai_khoan" && (
+                  <div className="mt-2">
+                    <button
+                      onClick={handleCreateMembershipFeeRequest}
+                      disabled={isCreatingFeeRequest}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-md transition-colors"
+                    >
+                      {isCreatingFeeRequest ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                          Đang gửi...
+                        </div>
+                      ) : (
+                        'Yêu cầu đóng hội phí'
+                      )}
+                    </button>
+                  </div>
+                )}
+
+              {/* Show message if request already exists */}
+              {hasExistingFeeRequest && !membershipFeeStatus?.hasPaidFee && (
+                <div className="mt-1">
+                  <p className="text-xs px-2 py-1 rounded-md font-medium text-blue-700 bg-blue-100 border border-blue-300">
+                    Đã gửi yêu cầu đóng hội phí
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex items-center ml-auto space-x-2">
-              {isMember ? (
-                hasChapterInfo() && (
-                  <button
-                    className="mx-auto whitespace-nowrap block py-1 px-4 h-8 bg-[#0E3D8A] text-white font-medium text-sm leading-4 rounded-lg"
-                    onClick={() =>
-                      navigate(
-                        `/invite-to-join-by-link/${groupId}/${encodeURIComponent(
-                          getMemberName()
-                        )}`
-                      )
-                    }
-                  >
-                    Mời hội viên
-                  </button>
-                )
-              ) : (
+              {!isMember &&
+              // (
+              //   hasChapterInfo() && (
+              //     <button
+              //       className="mx-auto whitespace-nowrap block py-1 px-4 h-8 bg-[#0E3D8A] text-white font-medium text-sm leading-4 rounded-lg"
+              //       onClick={() =>
+              //         navigate(
+              //           `/invite-to-join-by-link/${groupId}/${encodeURIComponent(
+              //             getMemberName()
+              //           )}`
+              //         )
+              //       }
+              //     >
+              //       Mời hội viên
+              //     </button>
+              //   )
+              // ) : 
+              (
                 <button
                   className="mx-auto whitespace-nowrap block py-1 px-4 h-8 bg-[#0E3D8A] text-white font-medium text-sm leading-4 rounded-lg"
                   onClick={() => handleVerifyMember()}
@@ -411,6 +571,8 @@ const UserPage = () => {
         </div>
       )}
       <PoweredByBlock customClass="fixed bottom-24 left-0 right-0" />
+
+      {/* Share Modal */}
       <Modal
         visible={isShareModalOpen}
         title=""
@@ -434,6 +596,33 @@ const UserPage = () => {
           <button
             className="block w-full h-12 py-2 font-bold text-white rounded-lg bg-blue-custom disabled:bg-blue-50 text-normal"
             onClick={() => setIsShareModalOpen(false)}
+          >
+            Đóng
+          </button>
+        </Box>
+      </Modal>
+
+      {/* ===== NEW: Membership Fee Request Modal ===== */}
+      <Modal
+        visible={modalConfig.visible}
+        title=""
+        onClose={closeModal}
+        verticalActions
+      >
+        <Box p={6}>
+          <div className="text-center flex justify-center mb-4">
+            {modalConfig.type === "success" ? <SuccessIcon /> : <WarningIcon />}
+          </div>
+          <div className="text-center font-bold text-lg my-4">
+            {modalConfig.title}
+          </div>
+          <div className="text-center text-[#222] my-4">
+            {modalConfig.message}
+          </div>
+          <button
+            className={`${modalConfig.type === "success" ? "bg-green-600" : "bg-blue-custom"
+              } disabled:bg-blue-50 text-white font-bold py-2 rounded-lg text-normal w-full block h-12`}
+            onClick={closeModal}
           >
             Đóng
           </button>

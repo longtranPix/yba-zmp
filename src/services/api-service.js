@@ -8,6 +8,7 @@ const ENV = 'production';
 // window.location.hostname === "localhost" ? "development" : "production";
 const API_DOMAIN = appConfig.api[ENV].domain;
 const GRAPHQL_ENDPOINT = "https://yba-zma-strapi.appmkt.vn/graphql";
+const API_BASE_URL = "https://yba-zma-strapi.appmkt.vn";
 
 // Simplified authentication storage
 let jwt = null;
@@ -957,6 +958,185 @@ services.getMyTickets = async (zaloID, memberId = null) => {
   };
 }
 
+// ===== NEW: Paginated version of getMyTickets =====
+services.getMyTicketsPaginated = async (zaloID, memberId = null, page = 1, pageSize = 10) => {
+  console.log('api-services.getMyTicketsPaginated - GraphQL', { zaloID, memberId, page, pageSize });
+
+  const query = `
+    query GetMyTicketsPaginated($filters: EventRegistrationFiltersInput, $sort: [String], $pagination: PaginationArg) {
+      eventRegistrations(filters: $filters, sort: $sort, pagination: $pagination) {
+        documentId
+        ma_ve
+        ten_nguoi_dang_ky
+        ten_su_kien
+        so_dien_thoai
+        email
+        da_check_in
+        gia_ve
+        ngay_mua
+        trang_thai
+        trang_thai_thanh_toan
+        loai_ve
+        ngay_su_kien
+        ma_zalo
+        ma_zalo_oa
+        ve_chinh
+        hien_thi_loai_ve
+        hoi_vien {
+          documentId
+          full_name
+          phone_number_1
+          email_1
+        }
+        su_kien {
+          documentId
+          ten_su_kien
+          thoi_gian_to_chuc
+          dia_diem
+          hinh_anh {
+            url
+          }
+          bank {
+            ten_ngan_hang
+            so_tai_khoan
+            ten_chu_tai_khoan
+          }
+        }
+        ve_cha {
+          documentId
+          ma_ve
+          ten_nguoi_dang_ky
+        }
+        ve_con {
+          documentId
+          ma_ve
+          ten_nguoi_dang_ky
+          so_dien_thoai
+          email
+          ve_chinh
+        }
+        createdAt
+        updatedAt
+        publishedAt
+      }
+    }
+  `;
+
+  // If no identifiers provided, return empty
+  if (!memberId && !zaloID) {
+    console.log('api-services.getMyTicketsPaginated - No valid identifier provided');
+    return {
+      error: 0,
+      data: [],
+      hasMore: false,
+      currentPage: page,
+      pageSize: pageSize,
+      message: "No identifier provided"
+    };
+  }
+
+  try {
+    // Convert page/pageSize to start/limit format
+    const offset = (page - 1) * pageSize;
+    const paginationParams = {
+      start: offset,
+      limit: pageSize
+    };
+
+    // ✅ SINGLE API CALL: Get tickets by BOTH "ma_zalo" OR "hoi_vien" using OR filter
+    console.log('api-services.getMyTicketsPaginated - Fetching tickets with OR filter', { zaloID, memberId });
+
+    // Build OR filter for both ma_zalo and hoi_vien
+    const orFilters = [];
+
+    if (zaloID) {
+      orFilters.push({
+        ma_zalo: {
+          eq: zaloID
+        }
+      });
+    }
+
+    if (memberId) {
+      orFilters.push({
+        hoi_vien: {
+          documentId: {
+            eq: memberId
+          }
+        }
+      });
+    }
+
+    const filters = {
+      or: orFilters
+    };
+
+    const response = await callGraphQL(query, {
+      filters: filters,
+      sort: ["createdAt:desc"],
+      pagination: paginationParams
+    }, shouldUseAuth());
+
+    if (response.data?.eventRegistrations) {
+      const allTickets = response.data.eventRegistrations.map(ticket => ({
+        ...ticket,
+        id: ticket.documentId,
+        ticketId: ticket.documentId,
+        eventId: ticket.su_kien?.documentId,
+        eventName: ticket.su_kien?.ten_su_kien,
+        eventDate: ticket.ngay_su_kien,
+        ticketCode: ticket.ma_ve,
+        registrantName: ticket.ten_nguoi_dang_ky,
+        isCheckedIn: ticket.da_check_in,
+        paymentStatus: ticket.trang_thai_thanh_toan,
+        ticketType: ticket.hien_thi_loai_ve,
+        source: ticket.hoi_vien ? 'member' : 'zalo' // Track source for debugging
+      }));
+
+      // Determine if there are more tickets (if we got exactly pageSize, there might be more)
+      const hasMore = allTickets.length === pageSize;
+
+      console.log(`api-services.getMyTicketsPaginated - Total tickets found: ${allTickets.length}`, {
+        memberTickets: allTickets.filter(t => t.source === 'member').length,
+        zaloTickets: allTickets.filter(t => t.source === 'zalo').length,
+        page: page,
+        pageSize: pageSize,
+        hasMore: hasMore
+      });
+
+      return {
+        error: 0,
+        data: allTickets,
+        hasMore: hasMore,
+        currentPage: page,
+        pageSize: pageSize,
+        message: `Found ${allTickets.length} tickets for page ${page}`
+      };
+    } else {
+      console.log('api-services.getMyTicketsPaginated - No tickets found');
+      return {
+        error: 0,
+        data: [],
+        hasMore: false,
+        currentPage: page,
+        pageSize: pageSize,
+        message: "No tickets found"
+      };
+    }
+
+  } catch (error) {
+    console.error('api-services.getMyTicketsPaginated - Error fetching tickets:', error);
+    return {
+      error: 1,
+      message: error.message || "Failed to fetch tickets",
+      data: [],
+      hasMore: false,
+      currentPage: page,
+      pageSize: pageSize
+    };
+  }
+}
+
 
 // Refactored to use GraphQL API for getting current user profile
 services.getMyProfile = async () => {
@@ -1056,7 +1236,20 @@ services.createMemberInformation = async (memberData) => {
           documentId
           url
           name
+          mime
+          size
+          width
+          height
+          ext
+          hash
         }
+        notes
+        membership_fee_expiration_date
+        events_attended
+        number_of_posts
+        secretary_in_charge
+        former_executive_committee_club
+        auto_zns_confirmation
         createdAt
         updatedAt
         publishedAt
@@ -1212,7 +1405,20 @@ services.updateRegisterMember = async (documentId, data) => {
           documentId
           url
           name
+          mime
+          size
+          width
+          height
+          ext
+          hash
         }
+        notes
+        membership_fee_expiration_date
+        events_attended
+        number_of_posts
+        secretary_in_charge
+        former_executive_committee_club
+        auto_zns_confirmation
         createdAt
         updatedAt
         publishedAt
@@ -1258,7 +1464,20 @@ services.saveMemberInfo = async (documentId, data) => {
           documentId
           url
           name
+          mime
+          size
+          width
+          height
+          ext
+          hash
         }
+        notes
+        membership_fee_expiration_date
+        events_attended
+        number_of_posts
+        secretary_in_charge
+        former_executive_committee_club
+        auto_zns_confirmation
         updatedAt
       }
     }
@@ -1269,7 +1488,7 @@ services.saveMemberInfo = async (documentId, data) => {
     data: data
   };
 
-  const response = await callGraphQL(mutation, variables, true);
+  const response = await callGraphQL(mutation, variables);
   await services.saveJson(true);
   return response;
 };
@@ -1320,7 +1539,20 @@ services.getMemberInfo = async (documentId) => {
           documentId
           url
           name
+          mime
+          size
+          width
+          height
+          ext
+          hash
         }
+        notes
+        membership_fee_expiration_date
+        events_attended
+        number_of_posts
+        secretary_in_charge
+        former_executive_committee_club
+        auto_zns_confirmation
         createdAt
         updatedAt
         publishedAt
@@ -5133,17 +5365,15 @@ services.getMember = async (documentId) => {
           ten_chi_hoi
           thu_ky_chinh {
             documentId
-            full_name
-            phone_number_1
-            email_1
-            position
+            ho_ten
+            so_dien_thoai
+            email
           }
           thu_ky_phu {
             documentId
-            full_name
-            phone_number_1
-            email_1
-            position
+            ho_ten
+            so_dien_thoai
+            email
           }
           so_luong_hoi_vien
           hoi_vien_moi_trong_nam
@@ -5212,7 +5442,7 @@ services.getMember = async (documentId) => {
   };
 
   // Use authentication - member data requires JWT
-  const response = await callGraphQL(query, variables, true);
+  const response = await callGraphQL(query, variables);
 
   // Transform response to match expected format for backward compatibility
   if (response.data?.memberInformation) {
@@ -7110,6 +7340,349 @@ services.validateTicketCode = (ticketCode) => {
       error: 1,
       message: error.message || "Failed to validate ticket code",
       isValid: false
+    };
+  }
+};
+
+// ===== REFACTORED: Upload media API - Public endpoint without authentication =====
+services.uploadMedia = async (mediaFile, fileName = "media") => {
+  console.log('api-services.uploadMedia', {mediaFile, fileName, fileSize: mediaFile.size, type: mediaFile.type });
+
+  try {
+    // ✅ Create FormData matching the example
+    const formData = new FormData();
+    formData.append('files', mediaFile); // Can be multiple files
+
+    // ✅ Use public upload endpoint without authentication
+    const response = await fetch('https://yba-zma-strapi.appmkt.vn/api/upload', {
+      method: 'POST',
+      body: formData // No headers needed for public endpoint
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('api-services.uploadMedia - Success:', data);
+
+    // ✅ Return media data with ID for GraphQL update
+    if (data && data.length > 0) {
+      const mediaData = data[0];
+      return {
+        error: 0,
+        data: {
+          // ✅ Primary identifiers for GraphQL
+          id: mediaData.id,
+          documentId: mediaData.documentId,
+
+          // ✅ File information
+          name: mediaData.name,
+          alternativeText: mediaData.alternativeText,
+          caption: mediaData.caption,
+
+          // ✅ File metadata
+          width: mediaData.width,
+          height: mediaData.height,
+          formats: mediaData.formats,
+          hash: mediaData.hash,
+          ext: mediaData.ext,
+          mime: mediaData.mime,
+          size: mediaData.size,
+
+          // ✅ URLs - ensure full URL
+          url: mediaData.url.startsWith('http')
+            ? mediaData.url
+            : `https://yba-zma-strapi.appmkt.vn${mediaData.url}`,
+          previewUrl: mediaData.previewUrl,
+
+          // ✅ Provider information
+          provider: mediaData.provider,
+          provider_metadata: mediaData.provider_metadata,
+
+          // ✅ Timestamps
+          createdAt: mediaData.createdAt,
+          updatedAt: mediaData.updatedAt,
+          publishedAt: mediaData.publishedAt
+        },
+        message: "Tải media lên thành công"
+      };
+    } else {
+      throw new Error('No media data returned from upload');
+    }
+
+  } catch (error) {
+    console.error('api-services.uploadMedia - Error:', error);
+    return {
+      error: 1,
+      message: error.message || "Không thể tải media lên",
+      data: null
+    };
+  }
+};
+
+// ✅ Keep backward compatibility - alias for existing code
+services.uploadImage = services.uploadMedia;
+
+// ===== NEW: Update member image API =====
+services.updateMemberImage = async (memberId, imageId) => {
+  console.log('api-services.updateMemberImage', { memberId, imageId });
+
+  const mutation = `
+    mutation UpdateMemberImage($documentId: ID!, $data: MemberInformationInput!) {
+      updateMemberInformation(documentId: $documentId, data: $data) {
+        documentId
+        full_name
+        member_image {
+          id
+          documentId
+          name
+          url
+          mime
+          size
+          width
+          height
+          ext
+          hash
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    documentId: memberId,
+    data: {
+      member_image: imageId
+    }
+  };
+
+  try {
+    const response = await callGraphQL(mutation, variables);
+
+    if (response.data?.updateMemberInformation) {
+      console.log('api-services.updateMemberImage - Success:', response.data.updateMemberInformation);
+      return {
+        error: 0,
+        data: response.data.updateMemberInformation,
+        message: "Cập nhật ảnh đại diện thành công"
+      };
+    } else {
+      throw new Error('Failed to update member image');
+    }
+
+  } catch (error) {
+    console.error('api-services.updateMemberImage - Error:', error);
+    return {
+      error: 1,
+      message: error.message || "Không thể cập nhật ảnh đại diện",
+      data: null
+    };
+  }
+};
+
+// ===== NEW: Request Membership Fee API =====
+services.createRequestMembershipFee = async (memberId, phoneNumber) => {
+  console.log('api-services.createRequestMembershipFee', { memberId, phoneNumber });
+
+  const mutation = `
+    mutation CreateRequestMembershipFee($data: RequestMembershipFeeInput!) {
+      createRequestMembershipFee(data: $data) {
+        documentId
+        member {
+          documentId
+          full_name
+          phone_number_1
+          email_1
+        }
+        phone_number
+        createdAt
+        updatedAt
+        publishedAt
+      }
+    }
+  `;
+
+  const variables = {
+    data: {
+      member: memberId,
+      phone_number: phoneNumber
+    }
+  };
+
+  try {
+    const response = await callGraphQL(mutation, variables);
+
+    if (response.data?.createRequestMembershipFee) {
+      console.log('api-services.createRequestMembershipFee - Success:', response.data.createRequestMembershipFee);
+      return {
+        error: 0,
+        data: response.data.createRequestMembershipFee,
+        message: "Yêu cầu đóng hội phí đã được tạo thành công"
+      };
+    } else {
+      throw new Error('Failed to create membership fee request');
+    }
+
+  } catch (error) {
+    console.error('api-services.createRequestMembershipFee - Error:', error);
+    return {
+      error: 1,
+      message: error.message || "Không thể tạo yêu cầu đóng hội phí",
+      data: null
+    };
+  }
+};
+
+// ===== NEW: Check if member has existing membership fee request =====
+services.checkExistingMembershipFeeRequest = async (memberId) => {
+  console.log('api-services.checkExistingMembershipFeeRequest', { memberId });
+
+  const query = `
+    query CheckMembershipFeeRequest($filters: RequestMembershipFeeFiltersInput) {
+      requestMembershipFees(filters: $filters) {
+        documentId
+        member {
+          documentId
+          full_name
+        }
+        phone_number
+        createdAt
+      }
+    }
+  `;
+
+  const variables = {
+    filters: {
+      member: {
+        documentId: {
+          eq: memberId
+        }
+      }
+    }
+  };
+
+  try {
+    const response = await callGraphQL(query, variables, true);
+
+    if (response.data?.requestMembershipFees) {
+      const requests = response.data.requestMembershipFees;
+      console.log('api-services.checkExistingMembershipFeeRequest - Found requests:', requests.length);
+
+      return {
+        error: 0,
+        data: {
+          hasExistingRequest: requests.length > 0,
+          requests: requests
+        },
+        message: `Found ${requests.length} existing requests`
+      };
+    } else {
+      return {
+        error: 0,
+        data: {
+          hasExistingRequest: false,
+          requests: []
+        },
+        message: "No existing requests found"
+      };
+    }
+
+  } catch (error) {
+    console.error('api-services.checkExistingMembershipFeeRequest - Error:', error);
+    return {
+      error: 1,
+      message: error.message || "Không thể kiểm tra yêu cầu hội phí",
+      data: null
+    };
+  }
+};
+
+// ===== NEW: Get detailed membership fee request status by member ID =====
+services.getMembershipFeeRequestStatus = async (memberId) => {
+  console.log('api-services.getMembershipFeeRequestStatus', { memberId });
+
+  const query = `
+    query GetMembershipFeeRequestStatus($filters: RequestMembershipFeeFiltersInput) {
+      requestMembershipFees(filters: $filters, sort: ["createdAt:desc"]) {
+        documentId
+        member {
+          documentId
+          full_name
+          phone_number_1
+          email_1
+          member_type
+          status
+        }
+        phone_number
+        createdAt
+        updatedAt
+        publishedAt
+      }
+    }
+  `;
+
+  const variables = {
+    filters: {
+      member: {
+        documentId: {
+          eq: memberId
+        }
+      }
+    }
+  };
+
+  try {
+    const response = await callGraphQL(query, variables);
+
+    if (response.data?.requestMembershipFees) {
+      const requests = response.data.requestMembershipFees;
+      console.log('api-services.getMembershipFeeRequestStatus - Found requests:', requests.length);
+
+      // Get the most recent request
+      const latestRequest = requests.length > 0 ? requests[0] : null;
+
+      return {
+        error: 0,
+        data: {
+          hasExistingRequest: requests.length > 0,
+          totalRequests: requests.length,
+          latestRequest: latestRequest,
+          allRequests: requests,
+          status: latestRequest ? {
+            requestId: latestRequest.documentId,
+            memberName: latestRequest.member?.full_name,
+            phoneNumber: latestRequest.phone_number,
+            requestDate: latestRequest.createdAt,
+            memberStatus: latestRequest.member?.status,
+            memberType: latestRequest.member?.member_type
+          } : null
+        },
+        message: requests.length > 0
+          ? `Found ${requests.length} request(s), latest from ${latestRequest?.createdAt}`
+          : "No membership fee requests found"
+      };
+    } else {
+      return {
+        error: 0,
+        data: {
+          hasExistingRequest: false,
+          totalRequests: 0,
+          latestRequest: null,
+          allRequests: [],
+          status: null
+        },
+        message: "No membership fee requests found"
+      };
+    }
+
+  } catch (error) {
+    console.error('api-services.getMembershipFeeRequestStatus - Error:', error);
+    return {
+      error: 1,
+      message: error.message || "Không thể lấy trạng thái yêu cầu hội phí",
+      data: null
     };
   }
 };

@@ -1,24 +1,23 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Icon, Page, useNavigate } from "zmp-ui";
 import {
-  listTicketState,
-  ticketEventState,
   refreshTrigger,
 } from "../state";
-import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
+import { useSetRecoilState } from "recoil";
 import Helper from "../utils/helper";
 import Tags from "../components/tags";
 import { getRouteParams, openShareSheet } from "zmp-sdk/apis";
 import IconShare from "../components/icons/share-icon";
 import { useAuth } from "../contexts/AuthContext";
 import { getImageProps } from "../utils/imageHelper";
+import APIServices from "../services/api-service";
 
 const TicketPage = () => {
   const navigate = useNavigate();
   const setRefreshTrigger = useSetRecoilState(refreshTrigger);
 
   // ===== NEW: Use AuthContext for user data =====
-  const { userInfo, member, userType, isMember } = useAuth();
+  const { userInfo, member } = useAuth();
 
   useEffect(() => {
     setRefreshTrigger((prev) => prev + 1);
@@ -26,17 +25,95 @@ const TicketPage = () => {
 
   const { tabId = 0 } = getRouteParams();
   const [selectTab, setSelectTab] = useState(tabId);
-  const listTicket = useRecoilValue(listTicketState);
-
-  // Tickets are already filtered by member ID or Zalo ID in the API via AuthContext data
-  // No need to filter again here since getMyTickets handles the filtering
-  const tickets = listTicket || [];
 
   // Get user identifiers from AuthContext
   const zaloId = userInfo?.id;
   const memberId = member?.documentId;
 
-  const [filter, setFilters] = useState([
+  // ===== PAGINATION STATE - Using start/limit format =====
+  const [tickets, setTickets] = useState([]);
+  const [currentOffset, setCurrentOffset] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreTickets, setHasMoreTickets] = useState(true);
+  const LIMIT = 10;
+
+  // ===== LOAD TICKETS FROM API - Using start/limit format =====
+  const loadTickets = async (start = 0, isLoadMore = false) => {
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+      setTickets([]); // Clear existing tickets for fresh load
+    }
+
+    try {
+      console.log('Loading tickets:', { start, limit: LIMIT, isLoadMore, zaloId, memberId });
+
+      // Convert start/limit to page/pageSize for the API call
+      const page = Math.floor(start / LIMIT) + 1;
+      const response = await APIServices.getMyTicketsPaginated(
+        zaloId,
+        memberId,
+        page,
+        LIMIT
+      );
+
+      if (response.error === 0) {
+        const newTickets = response.data || [];
+
+        if (isLoadMore) {
+          // Append new tickets to existing ones
+          setTickets(prevTickets => [...prevTickets, ...newTickets]);
+        } else {
+          // Replace tickets for fresh load
+          setTickets(newTickets);
+        }
+
+        setCurrentOffset(start + LIMIT);
+        setHasMoreTickets(response.hasMore);
+
+        console.log('Tickets loaded successfully:', {
+          start,
+          limit: LIMIT,
+          newTicketsCount: newTickets.length,
+          hasMore: response.hasMore,
+          totalTickets: isLoadMore ? tickets.length + newTickets.length : newTickets.length
+        });
+      } else {
+        console.error('Error loading tickets:', response.message);
+        if (!isLoadMore) {
+          setTickets([]);
+        }
+        setHasMoreTickets(false);
+      }
+    } catch (error) {
+      console.error('Exception loading tickets:', error);
+      if (!isLoadMore) {
+        setTickets([]);
+      }
+      setHasMoreTickets(false);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Load initial tickets when component mounts or user changes
+  useEffect(() => {
+    if (zaloId || memberId) {
+      loadTickets(0, false);
+    }
+  }, [zaloId, memberId]);
+
+  // Load more tickets function
+  const loadMoreTickets = () => {
+    if (!isLoadingMore && hasMoreTickets) {
+      loadTickets(currentOffset, true);
+    }
+  };
+
+  const [filter] = useState([
     {
       name: "Tất cả",
     },
@@ -85,6 +162,12 @@ const TicketPage = () => {
 
   const changeTags = (index) => {
     setSelectTab(index);
+    // Reset pagination and reload tickets when changing tabs
+    setCurrentOffset(0);
+    setHasMoreTickets(true);
+    if (zaloId || memberId) {
+      loadTickets(0, false);
+    }
   };
 
   const checkin = (id) => {
@@ -230,25 +313,215 @@ const TicketPage = () => {
     return childTickets;
   };
 
-  // Extract event IDs from tickets using GraphQL field names
-  const eventIds = [
-    ...new Set(
-      tickets
-        ?.map((ticket) => ticket?.eventId || ticket?.su_kien?.documentId)
-        .filter(Boolean)
-    ),
-  ];
-  const events = eventIds.map((id) => useRecoilValue(ticketEventState(id)));
-  const eventMap = Object.fromEntries(
-    eventIds.map((id, index) => [id, events[index]])
-  );
+  // ✅ FIX: Simplified approach - don't load external event data to avoid hooks issues
+  // Use event data that's already available in the ticket object itself
+
+  // ✅ FIX: Create a helper function that doesn't use hooks
+  const renderTicketItem = (ticket, index) => {
+    const childTickets = getChildTickets(ticket);
+    const hasChildTickets = childTickets && childTickets.length > 0;
+
+    return (
+      <div key={index} className="my-4">
+        {/* ✅ MAIN TICKET - Full size display */}
+        <div
+          onClick={() => handleClick(ticket)}
+          className={`border px-4 py-3 rounded-lg flex items-center shadow-sm ${hasChildTickets ? 'border-b-0 rounded-b-none bg-blue-50' : ''
+            }`}
+        >
+          <img
+            className="block w-20 h-20 mr-3 object-cover rounded-lg"
+            {
+            ...getImageProps(
+              ticket?.su_kien?.hinh_anh?.url ||
+              ticket?.eventImage ||
+              "https://api.ybahcm.vn/public/yba/yba-01.png")
+            }
+          />
+          <div className="pl-3 flex-1">
+            {/* ✅ GROUP TICKET INDICATOR */}
+            {hasChildTickets && (
+              <div className="flex items-center mb-1">
+                <Icon icon="zi-user-group" size={14} className="text-blue-600" />
+                <span className="text-xs text-blue-600 font-medium ml-1">
+                  Vé nhóm ({childTickets.length + 1} người)
+                </span>
+              </div>
+            )}
+
+            <p className="font-bold line-clamp-2 text-sm">
+              {ticket?.eventName ||
+                ticket?.ten_su_kien ||
+                "Chưa có tên sự kiện"}
+            </p>
+            <p className="text-xs text-[##6F7071] pt-1 items-center flex">
+              <Icon icon="zi-clock-1" size={16} />
+              <span className="px-2">
+                {ticket?.eventDate || ticket?.ngay_su_kien
+                  ? Helper.formatTime(
+                    new Date(ticket.eventDate || ticket.ngay_su_kien).getTime()
+                  )
+                  : "Chưa có ngày"}
+              </span>
+            </p>
+            <p className="text-xs text-[##6F7071] pt-1 items-center flex">
+              <Icon icon="zi-calendar" size={16} />
+              <span className="px-2">
+                Mã vé: {ticket?.ticketCode || ticket?.ma_ve || "N/A"}
+              </span>
+            </p>
+            <p className="text-xs text-[##6F7071] pt-1 items-center flex">
+              <Icon icon="zi-user" size={16} />
+              <span className="px-2 line-clamp-1">
+                {hasChildTickets ? 'Người đại diện: ' : ''}
+                {ticket?.registrantName ||
+                  ticket?.ten_nguoi_dang_ky ||
+                  "Chưa có tên"}
+              </span>
+            </p>
+
+            {/* Additional ticket information using GraphQL fields */}
+            {ticket?.hien_thi_loai_ve && (
+              <p className="text-xs text-[##6F7071] pt-1 items-center flex">
+                <Icon icon="zi-tag" size={16} />
+                <span className="px-2 line-clamp-1">
+                  {ticket.hien_thi_loai_ve}
+                </span>
+              </p>
+            )}
+
+            {/* Payment status indicator */}
+            {ticket?.trang_thai_thanh_toan && (
+              <p className="text-xs pt-1 items-center flex">
+                <Icon
+                  icon={ticket.trang_thai_thanh_toan === "Thanh_toan" ? "zi-check-circle" : "zi-clock-1"}
+                  size={16}
+                  className={ticket.trang_thai_thanh_toan === "Thanh_toan" ? "text-green-500" : "text-orange-500"}
+                />
+                <span className={`px-2 ${ticket.trang_thai_thanh_toan === "Thanh_toan" ? "text-green-500" : "text-orange-500"}`}>
+                  {ticket.trang_thai_thanh_toan === "Thanh_toan" ? "Đã thanh toán" : "Chưa thanh toán"}
+                </span>
+              </p>
+            )}
+
+            {/* Check-in status indicator */}
+            {ticket?.da_check_in === true && (
+              <p className="text-xs text-green-500 pt-1 items-center flex">
+                <Icon icon="zi-check-circle" size={16} />
+                <span className="px-2">Đã check-in</span>
+              </p>
+            )}
+          </div>
+          <div className="ml-auto">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                shareTicket(
+                  ticket?.eventName ||
+                  ticket?.ten_su_kien ||
+                  "Sự kiện YBA",
+                  ticket?.eventImage ||
+                  "https://api.ybahcm.vn/public/yba/yba-01.png",
+                  ticket.id || ticket.ticketId
+                );
+              }}
+              className="flex flex-col items-center text-[#999999] text-xs text-center rounded-lg whitespace-nowrap"
+            >
+              <IconShare />
+              <span className="mt-1">Chia sẻ</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ✅ CHILD TICKETS - Smaller display under main ticket */}
+        {hasChildTickets && (
+          <div className="border border-t-0 rounded-b-lg bg-gray-50">
+            {childTickets.map((childTicket, childIndex) => (
+              <div
+                key={`child-${childIndex}`}
+                onClick={() => handleClick(childTicket)}
+                className={`px-4 py-2 flex items-center hover:bg-gray-100 ${childIndex < childTickets.length - 1 ? 'border-b border-gray-200' : ''
+                  }`}
+              >
+                <div className="w-4 h-4 mr-3 flex items-center justify-center">
+                  <Icon icon="zi-user" size={12} className="text-gray-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700">
+                    {childTicket?.ten_nguoi_dang_ky ||
+                      childTicket?.registrantName ||
+                      `Thành viên ${childIndex + 1}`}
+                  </p>
+                  <div className="flex items-center space-x-4">
+                    <p className="text-xs text-gray-500">
+                      Mã vé: {childTicket?.ma_ve || childTicket?.ticketCode || "N/A"}
+                    </p>
+                    {childTicket?.so_dien_thoai && (
+                      <p className="text-xs text-gray-500">
+                        {childTicket.so_dien_thoai}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="ml-auto">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+
+                      // ✅ ENHANCED ID RESOLUTION for child ticket sharing
+                      const childTicketId = childTicket.id || childTicket.ticketId || childTicket.documentId;
+
+                      console.log('Sharing child ticket:', {
+                        childTicketId,
+                        childTicket,
+                        eventName: ticket?.eventName || ticket?.ten_su_kien || "Sự kiện YBA"
+                      });
+
+                      if (!childTicketId) {
+                        console.error('No valid child ticket ID for sharing:', childTicket);
+                        return;
+                      }
+
+                      shareTicket(
+                        ticket?.eventName ||
+                        ticket?.ten_su_kien ||
+                        "Sự kiện YBA",
+                        ticket?.eventImage ||
+                        "https://api.ybahcm.vn/public/yba/yba-01.png",
+                        childTicketId
+                      );
+                    }}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <IconShare size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Page className="page bg-white safe-page-content">
       {tickets && tickets.length > 0 && (
         <Tags items={filter} onClick={changeTags} active={selectTab} />
       )}
-      {getTickets().length == 0 && (
+
+      {/* Loading state for initial load */}
+      {isLoading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-500">Đang tải vé...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && getTickets().length == 0 && (
         <div className="flex items-center justify-center h-full -translate-y-8">
           <div className="mx-auto text-center">
             <img
@@ -261,202 +534,30 @@ const TicketPage = () => {
           </div>
         </div>
       )}
+      {/* ✅ RENDER TICKETS using the helper function to avoid hooks in loops */}
       {getTickets() &&
-        getTickets().map((ticket, i) => {
-          // Use GraphQL EventRegistration field names
-          const eventId = ticket?.eventId || ticket?.su_kien?.documentId;
-          const event = eventMap[eventId];
-          const childTickets = getChildTickets(ticket);
-          const hasChildTickets = childTickets && childTickets.length > 0;
+        getTickets().map((ticket, i) => renderTicketItem(ticket, i))}
 
-          return (
-            <div key={i} className="my-4">
-              {/* ✅ MAIN TICKET - Full size display */}
-              <div
-                onClick={() => handleClick(ticket)}
-                className={`border px-4 py-3 rounded-lg flex items-center shadow-sm ${hasChildTickets ? 'border-b-0 rounded-b-none bg-blue-50' : ''
-                  }`}
-              >
-                <img
-                  className="block w-20 h-20 mr-3 object-cover rounded-lg"
-                  {
-                  ...getImageProps(event?.hinh_anh?.url ||
-                    ticket?.eventImage ||
-                    "https://api.ybahcm.vn/public/yba/yba-01.png")
-                  }
-                />
-                <div className="pl-3 flex-1">
-                  {/* ✅ GROUP TICKET INDICATOR */}
-                  {hasChildTickets && (
-                    <div className="flex items-center mb-1">
-                      <Icon icon="zi-user-group" size={14} className="text-blue-600" />
-                      <span className="text-xs text-blue-600 font-medium ml-1">
-                        Vé nhóm ({childTickets.length + 1} người)
-                      </span>
-                    </div>
-                  )}
 
-                  <p className="font-bold line-clamp-2 text-sm">
-                    {ticket?.eventName ||
-                      ticket?.ten_su_kien ||
-                      event?.ten_su_kien ||
-                      event?.customFields?.["Sự kiện"] ||
-                      event?.name ||
-                      "Chưa có tên sự kiện"}
-                  </p>
-                  <p className="text-xs text-[##6F7071] pt-1 items-center flex">
-                    <Icon icon="zi-clock-1" size={16} />
-                    <span className="px-2">
-                      {ticket?.eventDate || ticket?.ngay_su_kien
-                        ? Helper.formatTime(
-                          new Date(ticket.eventDate || ticket.ngay_su_kien).getTime()
-                        )
-                        : "Chưa có ngày"}
-                    </span>
-                  </p>
-                  <p className="text-xs text-[##6F7071] pt-1 items-center flex">
-                    <Icon icon="zi-calendar" size={16} />
-                    <span className="px-2">
-                      Mã vé: {ticket?.ticketCode || ticket?.ma_ve || "N/A"}
-                    </span>
-                  </p>
-                  <p className="text-xs text-[##6F7071] pt-1 items-center flex">
-                    <Icon icon="zi-user" size={16} />
-                    <span className="px-2 line-clamp-1">
-                      {hasChildTickets ? 'Người đại diện: ' : ''}
-                      {ticket?.registrantName ||
-                        ticket?.ten_nguoi_dang_ky ||
-                        "Chưa có tên"}
-                    </span>
-                  </p>
-
-                  {/* Additional ticket information using GraphQL fields */}
-                  {ticket?.hien_thi_loai_ve && (
-                    <p className="text-xs text-[##6F7071] pt-1 items-center flex">
-                      <Icon icon="zi-tag" size={16} />
-                      <span className="px-2 line-clamp-1">
-                        {ticket.hien_thi_loai_ve}
-                      </span>
-                    </p>
-                  )}
-
-                  {/* Payment status indicator */}
-                  {ticket?.trang_thai_thanh_toan && (
-                    <p className="text-xs pt-1 items-center flex">
-                      <Icon
-                        icon={ticket.trang_thai_thanh_toan === "Thanh_toan" ? "zi-check-circle" : "zi-clock-1"}
-                        size={16}
-                        className={ticket.trang_thai_thanh_toan === "Thanh_toan" ? "text-green-500" : "text-orange-500"}
-                      />
-                      <span className={`px-2 ${ticket.trang_thai_thanh_toan === "Thanh_toan" ? "text-green-500" : "text-orange-500"}`}>
-                        {ticket.trang_thai_thanh_toan === "Thanh_toan" ? "Đã thanh toán" : "Chưa thanh toán"}
-                      </span>
-                    </p>
-                  )}
-
-                  {/* Check-in status indicator */}
-                  {ticket?.da_check_in === true && (
-                    <p className="text-xs text-green-500 pt-1 items-center flex">
-                      <Icon icon="zi-check-circle" size={16} />
-                      <span className="px-2">Đã check-in</span>
-                    </p>
-                  )}
-                </div>
-                <div className="ml-auto">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      shareTicket(
-                        ticket?.eventName ||
-                        ticket?.ten_su_kien ||
-                        event?.ten_su_kien ||
-                        event?.customFields?.["Sự kiện"] ||
-                        event?.name,
-                        ticket?.eventImage ||
-                        event?.hinh_anh?.url ||
-                        // event?.customFields?.["Hình ảnh"]?.[0]?.url,
-                        ticket.id || ticket.ticketId
-                      );
-                    }}
-                    className="flex flex-col items-center text-[#999999] text-xs text-center rounded-lg whitespace-nowrap"
-                  >
-                    <IconShare />
-                    <span className="mt-1">Chia sẻ</span>
-                  </button>
-                </div>
+      {/* Load More Button */}
+      {!isLoading && getTickets().length > 0 && hasMoreTickets && (
+        <div className="pb-10 mt-5">
+          <button
+            onClick={loadMoreTickets}
+            disabled={isLoadingMore}
+            className="block h-10 px-6 mx-auto font-bold text-white rounded-lg bg-blue-custom text-normal disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoadingMore ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Đang tải...
               </div>
-
-              {/* ✅ CHILD TICKETS - Smaller display under main ticket */}
-              {hasChildTickets && (
-                <div className="border border-t-0 rounded-b-lg bg-gray-50">
-                  {childTickets.map((childTicket, childIndex) => (
-                    <div
-                      key={`child-${childIndex}`}
-                      onClick={() => handleClick(childTicket)}
-                      className={`px-4 py-2 flex items-center hover:bg-gray-100 ${childIndex < childTickets.length - 1 ? 'border-b border-gray-200' : ''
-                        }`}
-                    >
-                      <div className="w-4 h-4 mr-3 flex items-center justify-center">
-                        <Icon icon="zi-user" size={12} className="text-gray-500" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-700">
-                          {childTicket?.ten_nguoi_dang_ky ||
-                            childTicket?.registrantName ||
-                            `Thành viên ${childIndex + 1}`}
-                        </p>
-                        <div className="flex items-center space-x-4">
-                          <p className="text-xs text-gray-500">
-                            Mã vé: {childTicket?.ma_ve || childTicket?.ticketCode || "N/A"}
-                          </p>
-                          {childTicket?.so_dien_thoai && (
-                            <p className="text-xs text-gray-500">
-                              {childTicket.so_dien_thoai}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="ml-auto">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-
-                            // ✅ ENHANCED ID RESOLUTION for child ticket sharing
-                            const childTicketId = childTicket.id || childTicket.ticketId || childTicket.documentId;
-
-                            console.log('Sharing child ticket:', {
-                              childTicketId,
-                              childTicket,
-                              eventName: ticket?.eventName || ticket?.ten_su_kien || event?.ten_su_kien
-                            });
-
-                            if (!childTicketId) {
-                              console.error('No valid child ticket ID for sharing:', childTicket);
-                              return;
-                            }
-
-                            shareTicket(
-                              ticket?.eventName ||
-                              ticket?.ten_su_kien ||
-                              event?.ten_su_kien ||
-                              event?.name,
-                              ticket?.eventImage ||
-                              event?.hinh_anh?.url,
-                              childTicketId
-                            );
-                          }}
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                        >
-                          <IconShare size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+            ) : (
+              'Xem thêm'
+            )}
+          </button>
+        </div>
+      )}
     </Page>
   );
 };

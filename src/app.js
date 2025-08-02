@@ -2,15 +2,15 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
-// Tailwind stylesheet
-import "./css/tailwind.scss";
-
-// ZaUI stylesheet
+// ✅ FIX: Proper CSS import order to resolve @charset issue
+// Import ZaUI first as it likely contains the @charset rule
 import "zmp-ui/zaui.css";
 
-// Your stylesheet
-import "./css/app.scss";
+// Import Tailwind
+import "./css/tailwind.scss";
 
+// Import custom styles
+import "./css/app.scss";
 import "./css/cubable.css";
 
 // Expose app configuration

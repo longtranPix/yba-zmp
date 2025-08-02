@@ -129,10 +129,12 @@ const ChatbotWidget = ({ className = "" }) => {
 
     setPosition(boundedPosition);
 
-    // ✅ CHECK IF DRAGGING OVER CLOSE CIRCLE (Bottom Center Position - Smaller Size)
-    const closeCircleSize = 64; // 16 * 4 (w-16 h-16)
+    // ✅ CHECK IF DRAGGING OVER CLOSE CIRCLE (Fixed position above navbar)
+    const closeCircleSize = 80; // 20 * 4 (w-20 h-20)
+    const navbarHeight = 100; // Navbar height from CSS (padding-bottom: 100px)
+    const closeCircleMargin = 20; // Margin above navbar
     const closeCircleX = (window.innerWidth - closeCircleSize) / 2;
-    const closeCircleY = window.innerHeight - 100 - closeCircleSize; // bottom: 100px
+    const closeCircleY = window.innerHeight - navbarHeight - closeCircleSize - closeCircleMargin;
 
     const chatbotCenterX = boundedPosition.x + widgetSize / 2;
     const chatbotCenterY = boundedPosition.y + widgetSize / 2;
@@ -289,24 +291,76 @@ const ChatbotWidget = ({ className = "" }) => {
     }
   };
 
-  // ✅ FORMAT MESSAGE (Simple markdown)
+  // ✅ FORMAT MESSAGE (Enhanced markdown with image support)
   const formatMessage = (content) => {
+    console.log('ChatbotWidget: Formatting message content:', content);
     let formatted = content;
-    
+
+    // ✅ NEW: Image support - ![alt text](image_url)
+    formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
+      // Validate image URL
+      const isValidImageUrl = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(src) ||
+                             src.startsWith('data:image/') ||
+                             src.includes('image') ||
+                             src.includes('photo') ||
+                             src.includes('picture');
+
+      if (isValidImageUrl) {
+        return `<img src="${src}" alt="${alt || 'Image'}" class="max-w-full h-auto rounded-lg shadow-md my-2 cursor-pointer" style="max-height: 300px; object-fit: contain;" onclick="window.open('${src}', '_blank')" />`;
+      }
+
+      // If not a valid image URL, return as regular link
+      return `<a href="${src}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">${alt || src}</a>`;
+    });
+
+    // ✅ NEW: Direct image URLs (auto-detect and convert to images)
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s<]*)?)/gi, (match, url) => {
+      console.log('ChatbotWidget: Converting image URL to img tag:', url);
+      return `<img src="${url}" alt="Image" class="chatbot-image" style="max-width: 100%; height: auto; max-height: 300px; object-fit: contain; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin: 8px 0; cursor: pointer; display: block;" onclick="window.open('${url}', '_blank')" />`;
+    });
+
+    // ✅ NEW: Also detect image URLs that might contain common image hosting patterns
+    formatted = formatted.replace(/(https?:\/\/[^\s<]*(?:image|img|photo|picture|pic)[^\s<]*)/gi, (match, url) => {
+      // Additional check for common image hosting services
+      if (url.includes('imgur.com') || url.includes('cloudinary.com') || url.includes('amazonaws.com') ||
+          url.includes('googleusercontent.com') || url.includes('unsplash.com') || url.includes('pexels.com') ||
+          url.includes('pixabay.com') || url.includes('shutterstock.com')) {
+        console.log('ChatbotWidget: Converting image hosting URL to img tag:', url);
+        return `<img src="${url}" alt="Image" class="chatbot-image" style="max-width: 100%; height: auto; max-height: 300px; object-fit: contain; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin: 8px 0; cursor: pointer; display: block;" onclick="window.open('${url}', '_blank')" />`;
+      }
+      return match; // Return unchanged if not an image hosting service
+    });
+
+    // ✅ NEW: Links - [text](url)
+    formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">$1</a>');
+
     // Bold text
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
+
+    // ✅ NEW: Italic text
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // ✅ NEW: Code blocks
+    formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 p-3 rounded-md my-2 overflow-x-auto"><code>$1</code></pre>');
+
+    // ✅ NEW: Inline code
+    formatted = formatted.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>');
+
     // Line breaks
     formatted = formatted.replace(/\n/g, '<br>');
-    
+
     // Bullet points
-    formatted = formatted.replace(/^- (.+)$/gm, '<li>$1</li>');
-    
+    formatted = formatted.replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>');
+
+    // ✅ NEW: Numbered lists
+    formatted = formatted.replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>');
+
     // Wrap lists
     if (formatted.includes('<li>')) {
-      formatted = formatted.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+      formatted = formatted.replace(/(<li[^>]*>.*<\/li>)/gs, '<ul class="list-disc list-inside my-2">$1</ul>');
     }
-    
+
+    console.log('ChatbotWidget: Formatted message result:', formatted);
     return formatted;
   };
 
@@ -315,38 +369,38 @@ const ChatbotWidget = ({ className = "" }) => {
 
   return (
     <>
-      {/* ✅ CLOSE CIRCLE - Shows when dragging (Smaller, White, More Transparent) */}
+      {/* ✅ CLOSE CIRCLE - Fixed position above navbar with Slate Background and Red X */}
       {isDragging && (
         <div
           className="fixed z-[9998] pointer-events-none"
           style={{
             left: '50%',
-            bottom: '100px',
+            bottom: '120px', // Fixed position: 100px navbar + 20px margin
             transform: 'translateX(-50%)'
           }}
         >
           <div
-            className={`w-16 h-16 rounded-full border-2 border-dashed flex items-center justify-center transition-all duration-300 ${
+            className={`w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center transition-all duration-300 ${
               isOverCloseCircle
-                ? 'border-white border-opacity-60 bg-white bg-opacity-15 scale-110'
-                : 'border-white border-opacity-30 bg-white bg-opacity-5'
+                ? 'border-slate-300 border-opacity-80 bg-slate-200 bg-opacity-90 scale-110 shadow-lg'
+                : 'border-slate-400 border-opacity-50 bg-slate-200 bg-opacity-70'
             }`}
           >
             <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 ${
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
                 isOverCloseCircle
-                  ? 'bg-white bg-opacity-70 text-gray-800 scale-110'
-                  : 'bg-white bg-opacity-40 text-gray-700'
+                  ? 'bg-slate-200 text-red-600 scale-110 shadow-md'
+                  : 'bg-slate-200 text-red-500'
               }`}
             >
-              <span className="text-sm font-bold opacity-80">×</span>
+              <span className="text-2xl font-bold">×</span>
             </div>
           </div>
-          <div className="text-center mt-2">
-            <span className={`text-xs font-medium transition-all duration-300 ${
+          <div className="text-center mt-3">
+            <span className={`text-sm font-medium transition-all duration-300 ${
               isOverCloseCircle
-                ? 'text-white opacity-80'
-                : 'text-white opacity-50'
+                ? 'text-slate-700 opacity-90'
+                : 'text-slate-600 opacity-70'
             }`}>
               {isOverCloseCircle ? 'Thả để đóng' : 'Kéo vào đây để đóng'}
             </span>
@@ -369,21 +423,67 @@ const ChatbotWidget = ({ className = "" }) => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-      {/* Close Button - Shows on hover (More Transparent) */}
+      {/* Close Button - Shows on hover with Slate Background and Red X */}
       {isHovering && !isDragging && (
         <button
           onClick={closeChatbot}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-red-400 bg-opacity-80 text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-red-500 hover:bg-opacity-90 transition-all duration-200 z-[10000] shadow-md"
+          className="absolute -top-2 -right-2 w-8 h-8 bg-slate-200 text-red-600 rounded-full flex items-center justify-center text-sm font-bold hover:bg-slate-300 hover:text-red-700 transition-all duration-200 z-[10000] shadow-lg border border-slate-300"
           style={{ cursor: 'pointer' }}
           onMouseDown={(e) => e.stopPropagation()} // Prevent dragging when clicking close
         >
-          <span className="opacity-90">×</span>
+          <span>×</span>
         </button>
       )}
 
       {/* ✅ FULL SCREEN Chat Window */}
       {isOpen && (
         <div className="chat-window fixed inset-0 bg-white flex flex-col overflow-hidden transform transition-all duration-300 ease-out z-[9998]">
+          {/* ✅ INLINE STYLES for message content - Using regular style tag */}
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              .chat-window .message-content img {
+                max-width: 100% !important;
+                height: auto !important;
+                border-radius: 8px !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+                margin: 8px 0 !important;
+                cursor: pointer !important;
+                transition: transform 0.2s ease !important;
+                display: block !important;
+              }
+              .chat-window .message-content img:hover {
+                transform: scale(1.02) !important;
+              }
+              .chat-window .message-content a {
+                color: #2563eb !important;
+                text-decoration: underline !important;
+              }
+              .chat-window .message-content a:hover {
+                color: #1d4ed8 !important;
+              }
+              .chat-window .message-content pre {
+                background-color: #f3f4f6 !important;
+                padding: 12px !important;
+                border-radius: 6px !important;
+                margin: 8px 0 !important;
+                overflow-x: auto !important;
+              }
+              .chat-window .message-content code {
+                background-color: #f3f4f6 !important;
+                padding: 2px 4px !important;
+                border-radius: 3px !important;
+                font-size: 0.875rem !important;
+              }
+              .chat-window .message-content ul {
+                list-style-type: disc !important;
+                list-style-position: inside !important;
+                margin: 8px 0 !important;
+              }
+              .chat-window .message-content li {
+                margin-left: 16px !important;
+              }
+            `
+          }} />
           {/* ✅ FULL SCREEN Header with Close Button */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 flex items-center justify-between shadow-lg">
             <div className="flex items-center space-x-3">
@@ -441,8 +541,14 @@ const ChatbotWidget = ({ className = "" }) => {
                         : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-md'
                     }`}>
                       <div
+                        className="message-content"
                         dangerouslySetInnerHTML={{
                           __html: formatMessage(message.content)
+                        }}
+                        style={{
+                          // ✅ Ensure images and content display properly
+                          wordBreak: 'break-word',
+                          lineHeight: '1.5'
                         }}
                       />
                     </div>
