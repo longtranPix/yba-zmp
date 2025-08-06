@@ -3118,6 +3118,7 @@ services.registerEvent = async (eventId, ticketId, registrationData, zaloIdByOA)
           su_kien {
             documentId
             ten_su_kien
+            ma_su_kien
           }
           ve_con {
             documentId
@@ -3255,7 +3256,7 @@ services.registerEvent = async (eventId, ticketId, registrationData, zaloIdByOA)
             accountNumber: accountNumber,
             accountName: accountName,
             amount: ticketPrice,
-            addInfo: mainRegistration.ma_ve, // Use ticket code as payment content
+            addInfo: `${mainRegistration?.ten_nguoi_dang_ky}_${mainRegistration?.su_kien?.ma_su_kien}_${mainRegistration.ma_ve}`, // Use ticket code as payment content
             style: 'compact2',
             fileType: 'jpg'
           });
@@ -7032,65 +7033,36 @@ services.generateUniqueTicketCode = async (eventId, userId, userType = 'guest', 
 
 // Enhanced ticket code generator with crypto-level randomness
 services.generateTicketCode = (eventId, userId, userType = 'guest') => {
-  console.log('api-services.generateTicketCode - Generating ticket code with enhanced randomness:', {
+  console.log('api-services.generateTicketCode - Generating simple ticket code with YBA prefix:', {
     eventId,
     userId,
     userType
   });
 
   try {
-    // Get current timestamp with microsecond precision
+    // Get current timestamp for uniqueness
     const now = new Date();
-    const timestamp = now.getTime(); // Milliseconds since epoch
-    const microTimestamp = performance.now(); // High-resolution timestamp
+    const timestamp = now.getTime();
+    const microTimestamp = performance.now();
 
-    // Create date components for readability
-    const year = now.getFullYear().toString().slice(-2); // Last 2 digits of year
-    const month = String(now.getMonth() + 1).padStart(2, '0'); // Month (01-12)
-    const day = String(now.getDate()).padStart(2, '0'); // Day (01-31)
-    const hour = String(now.getHours()).padStart(2, '0'); // Hour (00-23)
-    const minute = String(now.getMinutes()).padStart(2, '0'); // Minute (00-59)
-    const second = String(now.getSeconds()).padStart(2, '0'); // Second (00-59)
-    const millisecond = String(now.getMilliseconds()).padStart(3, '0'); // Millisecond (000-999)
+    // ✅ GENERATE SIMPLE RANDOM STRING (6 characters)
+    // Using multiple randomness sources for better uniqueness
+    const random1 = Math.random().toString(36).substring(2, 4).toUpperCase(); // 2 chars
+    const random2 = Math.random().toString(36).substring(2, 4).toUpperCase(); // 2 chars
+    const timeRandom = Math.floor(microTimestamp).toString(36).substring(-2).toUpperCase(); // 2 chars from timestamp
 
-    // ✅ ENHANCED RANDOMNESS with multiple sources
-    const random1 = Math.random().toString(36).substring(2, 8).toUpperCase(); // 6 chars
-    const random2 = Math.random().toString(36).substring(2, 6).toUpperCase(); // 4 chars
-    const microRandom = Math.floor(microTimestamp * 1000).toString(36).substring(-4).toUpperCase(); // 4 chars from micro timestamp
+    // Combine to create 6-character random string
+    const randomString = (random1 + random2 + timeRandom).substring(0, 6);
 
-    // Combine random components for maximum uniqueness
-    const randomComponent = (random1 + random2 + microRandom).substring(0, 8); // 8 chars total
+    // ✅ SIMPLE TICKET CODE FORMAT: YBA-XXXXXX
+    const ticketCode = `YBA-${randomString}`;
 
-    // Create user identifier with enhanced randomness
-    const userBase = userId ? userId.toString().substring(0, 3) : 'USR';
-    const userRandom = Math.random().toString(36).substring(2, 4).toUpperCase();
-    const userIdentifier = (userBase + userRandom).substring(0, 4).toUpperCase().padEnd(4, '0');
-
-    // Create event identifier with enhanced randomness
-    const eventBase = eventId ? eventId.toString().substring(0, 3) : 'EVT';
-    const eventRandom = Math.random().toString(36).substring(2, 4).toUpperCase();
-    const eventIdentifier = (eventBase + eventRandom).substring(0, 4).toUpperCase().padEnd(4, '0');
-
-    // User type prefix
-    const typePrefix = userType === 'member' ? 'M' : 'G'; // M for Member, G for Guest
-
-    // ✅ GENERATE ENHANCED UNIQUE TICKET CODE with crypto-level randomness
-    // Format: YBA-[TYPE][YY][MM][DD]-[HH][MM][SS][MS]-[EVENT]-[USER]-[RANDOM]
-    const ticketCode = `YBA-${typePrefix}${year}${month}${day}-${hour}${minute}${second}${millisecond}-${eventIdentifier}-${userIdentifier}-${randomComponent}`;
-
-    console.log('generateTicketCode: Generated enhanced ticket code:', {
+    console.log('generateTicketCode: Generated simple ticket code:', {
       ticketCode,
+      randomString,
       timestamp,
       microTimestamp,
-      components: {
-        typePrefix,
-        dateComponent: `${year}${month}${day}`,
-        timeComponent: `${hour}${minute}${second}${millisecond}`,
-        eventIdentifier,
-        userIdentifier,
-        randomComponent,
-        totalLength: ticketCode.length
-      }
+      totalLength: ticketCode.length
     });
 
     return {
@@ -7104,11 +7076,11 @@ services.generateTicketCode = (eventId, userId, userType = 'guest') => {
           type: userType,
           event_id: eventId,
           user_id: userId,
-          random: randomComponent,
-          enhanced_randomness: true
+          random: randomString,
+          format: 'YBA-XXXXXX'
         }
       },
-      message: "Enhanced ticket code generated successfully"
+      message: "Simple ticket code generated successfully"
     };
 
   } catch (error) {

@@ -485,7 +485,7 @@ const RegisterMemberPage = () => {
         ? customInfo.phoneNumber
         : getMemberPhone(),
       "Zalo ID": eventUserInfo?.id || userInfo?.id, // ✅ REFACTORED: Use userInfo from useAuth()
-      "Zalo OA ID": userInfo?.zaloIDByOA, // ma_zalo_oa: String
+      "Zalo OA ID": userInfo?.idByOA, // ma_zalo_oa: String
       "Số lượng vé": String(totalTickets || 1), // For processing, not a direct GraphQL field
       "Công ty": customInfo.guestTicket // Not direct GraphQL field, might be in member info
         ? ""

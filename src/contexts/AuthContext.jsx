@@ -421,6 +421,7 @@ export const AuthProvider = ({ children }) => {
         name: userInfo.name,
         avatar: userInfo.avatar,
         phoneNumber: phoneNumber,
+        idByOA: userInfo.idByOA,
         phoneNumberSource: phoneNumber ? 'zalo_graph_api' : null,
         ...userInfo
       };
