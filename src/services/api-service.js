@@ -323,18 +323,18 @@ const callGraphQL = (query, variables = {}, requireAuth = false) => {
 
 services.getConfigs = () => {
   console.log("api-services.getConfigs");
-  return new Promise((resolve, reject) => {
-    fetch(`${API_DOMAIN}/configs`, {
-      method: "GET",
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        return resolve(data);
-      })
-      .catch((error) => {
-        return reject(error);
-      });
-  });
+  const query = `
+  query AppConfig {
+    appConfig {
+      app_info
+      bank_info
+      banners
+      oa_info
+      documentId
+    }
+  }
+  `
+  return callGraphQL(query)
 };
 
 // Legacy login function - now only used for cached auth info

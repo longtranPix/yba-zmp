@@ -33,7 +33,7 @@ const PoweredByBlock = ({ customClass }) => {
       <img
         onClick={handleClick}
         className="w-[155px] block m-auto"
-        src={`${IMAGE_DOMAINS.API}/public/yba/powered_by_logo_v2.png`}
+        src={"https://yba-zma-strapi.appmkt.vn/uploads/Powered_by_Cubable_1_07e77f0a39.png"}
         alt="Powered by YBA HCM"
       />
     </div>

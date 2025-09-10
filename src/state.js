@@ -27,7 +27,8 @@ export const configState = selector({
   key: "Configs",
   get: async ({ get }) => {
     const response = await APIServices.getConfigs();
-    let configs = response.data ? response.data : {};
+    console.log(response, 'app: config')
+    let configs = response?.data ? response.data.appConfig : {};
     return configs;
   },
 });
